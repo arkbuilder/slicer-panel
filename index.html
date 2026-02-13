@@ -194,16 +194,12 @@
             max-width: 1200px;
             justify-content: center;
             flex-wrap: wrap;
-            perspective: 1000px;
         }
 
         .channel {
             flex: 1;
             min-width: 400px;
             max-width: 550px;
-            transform-style: preserve-3d;
-            display: flex;
-            flex-direction: column;
         }
 
         .channel h3 {
@@ -212,36 +208,9 @@
             color: #4a90d9;
         }
 
-        /* Left channel - angles left and mirrors downward */
-        #left-channel {
-            flex-direction: column-reverse;
-        }
-
-        #left-channel h3 {
-            margin-bottom: 0;
-            margin-top: 10px;
-        }
-
-        #left-channel .bars-container {
-            transform: rotateY(15deg) rotateX(5deg);
-            transform-origin: right center;
-            align-items: flex-start;
-        }
-
-        #left-channel .bar {
-            transform: scaleY(-1);
-            transform-origin: top center;
-        }
-
-        /* Right channel - angles right and grows upward */
-        #right-channel .bars-container {
-            transform: rotateY(-15deg) rotateX(5deg);
-            transform-origin: left center;
-            align-items: flex-end;
-        }
-
         .bars-container {
             display: flex;
+            align-items: flex-end;
             justify-content: space-between;
             height: 300px;
             background: rgba(0, 0, 0, 0.3);
@@ -256,39 +225,44 @@
             border-radius: 3px 3px 0 0;
             min-height: 2px;
             box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-            position: relative;
             cursor: pointer;
+            transition: filter 0.2s;
         }
 
-        .bar-tooltip {
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%) scaleY(1);
-            background: rgba(0, 0, 0, 0.9);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
+        .bar:hover {
+            filter: brightness(1.3);
+        }
+
+        #tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #4a90d9;
+            border-radius: 8px;
+            padding: 12px 16px;
             pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-            z-index: 100;
-            margin-bottom: 5px;
+            z-index: 1000;
+            display: none;
+            color: #ffffff;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
-        /* Fix tooltip orientation for mirrored left channel bars */
-        #left-channel .bar-tooltip {
-            transform: translateX(-50%) scaleY(-1);
-            bottom: auto;
-            top: 100%;
-            margin-bottom: 0;
-            margin-top: 5px;
+        #tooltip.visible {
+            display: block;
         }
 
-        .bar:hover .bar-tooltip {
-            opacity: 1;
+        .tooltip-line {
+            margin: 3px 0;
+        }
+
+        .tooltip-label {
+            color: #4a90d9;
+            font-weight: bold;
+        }
+
+        .tooltip-value {
+            color: #00ff88;
         }
     </style>
 </head>
@@ -331,6 +305,8 @@
         </div>
     </div>
 
+    <div id="tooltip"></div>
+
     <script>
         // Audio Context and Nodes
         let audioContext = null;
@@ -348,21 +324,23 @@
         let barHeightsLeft = new Array(NUM_BANDS).fill(0);
         let barHeightsRight = new Array(NUM_BANDS).fill(0);
 
+        // Band frequency ranges and data
+        let bandFrequencyRanges = [];
+        let leftBandData = new Array(NUM_BANDS).fill(0);
+        let rightBandData = new Array(NUM_BANDS).fill(0);
+
         // Configuration
         const FFT_SIZE = 2048;
         let fallRate = 5;
         let isSeeking = false;
 
-        // Frequency ranges for tooltips
-        const FREQUENCY_RANGES = [];
-
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', init);
 
         function init() {
-            calculateFrequencyRanges();
             createBars('left-channel');
             createBars('right-channel');
+            calculateFrequencyRanges();
             setupDragAndDrop();
             setupFileInput();
             setupControls();
@@ -371,33 +349,96 @@
         }
 
         function calculateFrequencyRanges() {
-            const minFreq = 20, maxFreq = 20000;
-            for (let i = 0; i < NUM_BANDS; i++) {
-                const low = minFreq * Math.pow(maxFreq / minFreq, i / NUM_BANDS);
-                const high = minFreq * Math.pow(maxFreq / minFreq, (i + 1) / NUM_BANDS);
-                FREQUENCY_RANGES.push({ low: Math.round(low), high: Math.round(high) });
-            }
-        }
+            const minFreq = 20;
+            const maxFreq = 20000;
 
-        function formatFreq(hz) {
-            return hz >= 1000 ? (hz / 1000).toFixed(1) + 'kHz' : hz + 'Hz';
+            for (let i = 0; i < NUM_BANDS; i++) {
+                const lowFreq = minFreq * Math.pow(maxFreq / minFreq, i / NUM_BANDS);
+                const highFreq = minFreq * Math.pow(maxFreq / minFreq, (i + 1) / NUM_BANDS);
+                bandFrequencyRanges.push({ low: lowFreq, high: highFreq });
+            }
         }
 
         function createBars(containerId) {
             const container = document.querySelector(`#${containerId} .bars-container`);
+            const channel = containerId === 'left-channel' ? 'left' : 'right';
+
             for (let i = 0; i < NUM_BANDS; i++) {
                 const bar = document.createElement('div');
                 bar.className = 'bar';
                 bar.style.height = '2px';
-                bar.dataset.index = i;
+                bar.dataset.bandIndex = i;
+                bar.dataset.channel = channel;
 
-                // Create tooltip
-                const tooltip = document.createElement('div');
-                tooltip.className = 'bar-tooltip';
-                bar.appendChild(tooltip);
+                // Add hover event listeners
+                bar.addEventListener('mouseenter', handleBarHover);
+                bar.addEventListener('mousemove', handleBarHover);
+                bar.addEventListener('mouseleave', hideTooltip);
 
                 container.appendChild(bar);
             }
+        }
+
+        function handleBarHover(event) {
+            const bandIndex = parseInt(event.target.dataset.bandIndex);
+            const channel = event.target.dataset.channel;
+            const bandData = channel === 'left' ? leftBandData : rightBandData;
+
+            // Get frequency range
+            const freqRange = bandFrequencyRanges[bandIndex];
+            const lowFreq = Math.round(freqRange.low);
+            const highFreq = Math.round(freqRange.high);
+
+            // Get amplitude (0-255 scale)
+            const amplitude = Math.round(bandData[bandIndex]);
+
+            // Calculate total energy
+            const totalEnergy = bandData.reduce((sum, val) => sum + val, 0);
+            const energyPercent = totalEnergy > 0 ? ((bandData[bandIndex] / totalEnergy) * 100).toFixed(1) : 0;
+
+            // Format frequency range
+            let freqRangeStr;
+            if (lowFreq >= 1000 && highFreq >= 1000) {
+                freqRangeStr = `${(lowFreq / 1000).toFixed(1)}–${(highFreq / 1000).toFixed(1)} kHz`;
+            } else if (highFreq >= 1000) {
+                freqRangeStr = `${lowFreq}–${(highFreq / 1000).toFixed(1)} kHz`;
+            } else {
+                freqRangeStr = `${lowFreq}–${highFreq} Hz`;
+            }
+
+            // Update tooltip content
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <div class="tooltip-line"><span class="tooltip-label">Frequency:</span> <span class="tooltip-value">${freqRangeStr}</span></div>
+                <div class="tooltip-line"><span class="tooltip-label">Amplitude:</span> <span class="tooltip-value">${amplitude} / 255</span></div>
+                <div class="tooltip-line"><span class="tooltip-label">Energy:</span> <span class="tooltip-value">${energyPercent}%</span></div>
+            `;
+
+            // Position tooltip near cursor
+            const tooltipWidth = 220;
+            const tooltipHeight = 100;
+            const offsetX = 15;
+            const offsetY = 15;
+
+            let x = event.clientX + offsetX;
+            let y = event.clientY + offsetY;
+
+            // Keep tooltip on screen
+            if (x + tooltipWidth > window.innerWidth) {
+                x = event.clientX - tooltipWidth - offsetX;
+            }
+            if (y + tooltipHeight > window.innerHeight) {
+                y = event.clientY - tooltipHeight - offsetY;
+            }
+
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+            tooltip.classList.add('visible');
+        }
+
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.classList.remove('visible');
         }
 
         function setupDragAndDrop() {
@@ -560,6 +601,10 @@
             const leftBands = getLogarithmicBands(analyserLeft);
             const rightBands = getLogarithmicBands(analyserRight);
 
+            // Store band data for tooltip
+            leftBandData = leftBands.slice();
+            rightBandData = rightBands.slice();
+
             // Update bar heights with falling effect
             updateBars('left-channel', leftBands, barHeightsLeft);
             updateBars('right-channel', rightBands, barHeightsRight);
@@ -568,7 +613,6 @@
         function updateBars(containerId, newValues, currentHeights) {
             const bars = document.querySelectorAll(`#${containerId} .bars-container .bar`);
             const containerHeight = 280; // Max height in pixels
-            const totalEnergy = newValues.reduce((a, b) => a + b, 0);
 
             for (let i = 0; i < NUM_BANDS; i++) {
                 // Convert 0-255 to pixel height
@@ -586,15 +630,6 @@
 
                 // Apply height to DOM element
                 bars[i].style.height = Math.max(2, currentHeights[i]) + 'px';
-
-                // Update tooltip content
-                const tooltip = bars[i].querySelector('.bar-tooltip');
-                if (tooltip) {
-                    const range = FREQUENCY_RANGES[i];
-                    const amplitude = Math.round(newValues[i]);
-                    const percent = totalEnergy > 0 ? ((newValues[i] / totalEnergy) * 100).toFixed(1) : '0.0';
-                    tooltip.innerHTML = `<strong>${formatFreq(range.low)} - ${formatFreq(range.high)}</strong><br>Amplitude: ${amplitude}<br>Energy: ${percent}%`;
-                }
             }
         }
 
