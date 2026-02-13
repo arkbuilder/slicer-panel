@@ -450,13 +450,23 @@
             position: relative;
             cursor: pointer;
             transition: all 0.1s ease;
+            overflow: hidden;
         }
 
         .knob:hover {
             background: radial-gradient(circle at 30% 30%, #6a6a6a, #3a3a3a);
         }
 
-        .knob::before {
+        .knob-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.1s ease;
+        }
+
+        .knob-indicator::before {
             content: '';
             position: absolute;
             top: 8px;
@@ -526,7 +536,9 @@
             <div class="control-section">
                 <div class="control-label">Decay</div>
                 <div class="knob-container">
-                    <div class="knob" id="fall-rate-knob"></div>
+                    <div class="knob" id="fall-rate-knob">
+                        <div class="knob-indicator"></div>
+                    </div>
                 </div>
                 <div class="knob-value" id="fall-rate-value">5</div>
                 <input type="range" id="fall-rate" min="1" max="20" value="5" style="display: none;">
@@ -548,7 +560,9 @@
             <div class="control-section">
                 <div class="control-label">Monitor</div>
                 <div class="knob-container">
-                    <div class="knob" id="gain-knob"></div>
+                    <div class="knob" id="gain-knob">
+                        <div class="knob-indicator"></div>
+                    </div>
                 </div>
                 <div class="knob-value">0dB</div>
             </div>
@@ -939,6 +953,7 @@
             const slider = document.getElementById('fall-rate');
             const valueDisplay = document.getElementById('fall-rate-value');
             const knob = document.getElementById('fall-rate-knob');
+            const knobIndicator = knob.querySelector('.knob-indicator');
             let isDragging = false;
             let lastAngle = null;
 
@@ -947,7 +962,7 @@
                 const minAngle = -135;
                 const maxAngle = 135;
                 const angle = minAngle + ((value - 1) / 19) * (maxAngle - minAngle);
-                knob.style.transform = `rotate(${angle}deg)`;
+                knobIndicator.style.transform = `rotate(${angle}deg)`;
             }
 
             // Calculate angle from knob center to mouse position
