@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio FFT Visualizer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #upload-section {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        #drop-zone {
+            border: 3px dashed #4a90d9;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: rgba(74, 144, 217, 0.1);
+            cursor: pointer;
+        }
+
+        #drop-zone.drag-over {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            transform: scale(1.02);
+        }
+
+        #drop-zone p {
+            margin: 10px 0;
+        }
+
+        #drop-zone input[type="file"] {
+            display: none;
+        }
+
+        .file-button {
+            display: inline-block;
+            padding: 10px 30px;
+            background: #4a90d9;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+
+        .file-button:hover {
+            background: #357abd;
+        }
+
+        #file-name {
+            text-align: center;
+            margin-top: 10px;
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        #control-bar {
+            width: 100%;
+            max-width: 700px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px 25px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .control-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #restart-btn {
+            background: #4a90d9;
+            color: #fff;
+        }
+
+        #restart-btn:hover:not(:disabled) {
+            background: #357abd;
+            transform: scale(1.1);
+        }
+
+        #play-pause-btn {
+            background: #00ff88;
+            color: #000;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+
+        #play-pause-btn:hover:not(:disabled) {
+            transform: scale(1.1);
+        }
+
+        #play-pause-btn.playing {
+            background: #ffaa00;
+        }
+
+        #slider-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+
+        #slider-section label {
+            font-weight: bold;
+        }
+
+        #fall-rate {
+            width: 200px;
+            accent-color: #4a90d9;
+        }
+
+        #fall-rate-value {
+            min-width: 30px;
+            text-align: center;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .time-display {
+            font-family: monospace;
+            font-size: 14px;
+            min-width: 50px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        #current-time {
+            color: #00ff88;
+        }
+
+        #duration {
+            color: #4a90d9;
+        }
+
+        #progress-bar {
+            flex: 1;
+            height: 8px;
+            accent-color: #00ff88;
+            cursor: pointer;
+        }
+
+        #progress-bar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #visualizer-container {
+            display: flex;
+            gap: 40px;
+            width: 100%;
+            max-width: 1200px;
+            justify-content: center;
+            flex-wrap: wrap;
+            perspective: 1000px;
+        }
+
+        .channel {
+            flex: 1;
+            min-width: 400px;
+            max-width: 550px;
+            transform-style: preserve-3d;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel h3 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #4a90d9;
+        }
+
+        /* Left channel - angles left and mirrors downward */
+        #left-channel {
+            flex-direction: column-reverse;
+        }
+
+        #left-channel h3 {
+            margin-bottom: 0;
+            margin-top: 10px;
+        }
+
+        #left-channel .bars-container {
+            transform: rotateY(15deg) rotateX(5deg);
+            transform-origin: right center;
+            align-items: flex-start;
+        }
+
+        #left-channel .bar {
+            transform: scaleY(-1);
+            transform-origin: top center;
+        }
+
+        /* Right channel - angles right and grows upward */
+        #right-channel .bars-container {
+            transform: rotateY(-15deg) rotateX(5deg);
+            transform-origin: left center;
+            align-items: flex-end;
+        }
+
+        .bars-container {
+            display: flex;
+            justify-content: space-between;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            gap: 4px;
+        }
+
+        .bar {
+            flex: 1;
+            background: linear-gradient(to top, #00ff88, #4a90d9, #ff4466);
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .bar-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) scaleY(1);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+
+        /* Fix tooltip orientation for mirrored left channel bars */
+        #left-channel .bar-tooltip {
+            transform: translateX(-50%) scaleY(-1);
+            bottom: auto;
+            top: 100%;
+            margin-bottom: 0;
+            margin-top: 5px;
+        }
+
+        .bar:hover .bar-tooltip {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Audio FFT Visualizer</h1>
+
+    <div id="upload-section">
+        <div id="drop-zone">
+            <p>Drag & Drop MP3 file here</p>
+            <p>or</p>
+            <input type="file" id="file-input" accept="audio/mp3,audio/mpeg,audio/*">
+            <label for="file-input" class="file-button">Choose File</label>
+        </div>
+        <p id="file-name"></p>
+    </div>
+
+    <div id="control-bar">
+        <button id="restart-btn" class="control-button" disabled>⏮</button>
+        <button id="play-pause-btn" class="control-button" disabled>▶</button>
+        <span id="current-time" class="time-display">0:00</span>
+        <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" disabled>
+        <span id="duration" class="time-display">0:00</span>
+    </div>
+
+    <div id="slider-section">
+        <label for="fall-rate">Fall Rate:</label>
+        <input type="range" id="fall-rate" min="1" max="20" value="5">
+        <span id="fall-rate-value">5</span>
+    </div>
+
+    <div id="visualizer-container">
+        <div id="left-channel" class="channel">
+            <h3>Left Channel</h3>
+            <div class="bars-container"></div>
+        </div>
+        <div id="right-channel" class="channel">
+            <h3>Right Channel</h3>
+            <div class="bars-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context and Nodes
+        let audioContext = null;
+        let sourceNode = null;
+        let splitterNode = null;
+        let analyserLeft = null;
+        let analyserRight = null;
+
+        // Audio Element
+        let audioElement = null;
+
+        // Animation
+        let animationId = null;
+        const NUM_BANDS = 20;
+        let barHeightsLeft = new Array(NUM_BANDS).fill(0);
+        let barHeightsRight = new Array(NUM_BANDS).fill(0);
+
+        // Configuration
+        const FFT_SIZE = 2048;
+        let fallRate = 5;
+        let isSeeking = false;
+
+        // Frequency ranges for tooltips
+        const FREQUENCY_RANGES = [];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', init);
+
+        function init() {
+            calculateFrequencyRanges();
+            createBars('left-channel');
+            createBars('right-channel');
+            setupDragAndDrop();
+            setupFileInput();
+            setupControls();
+            setupSlider();
+            setupProgressBar();
+        }
+
+        function calculateFrequencyRanges() {
+            const minFreq = 20, maxFreq = 20000;
+            for (let i = 0; i < NUM_BANDS; i++) {
+                const low = minFreq * Math.pow(maxFreq / minFreq, i / NUM_BANDS);
+                const high = minFreq * Math.pow(maxFreq / minFreq, (i + 1) / NUM_BANDS);
+                FREQUENCY_RANGES.push({ low: Math.round(low), high: Math.round(high) });
+            }
+        }
+
+        function formatFreq(hz) {
+            return hz >= 1000 ? (hz / 1000).toFixed(1) + 'kHz' : hz + 'Hz';
+        }
+
+        function createBars(containerId) {
+            const container = document.querySelector(`#${containerId} .bars-container`);
+            for (let i = 0; i < NUM_BANDS; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = '2px';
+                bar.dataset.index = i;
+
+                // Create tooltip
+                const tooltip = document.createElement('div');
+                tooltip.className = 'bar-tooltip';
+                bar.appendChild(tooltip);
+
+                container.appendChild(bar);
+            }
+        }
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('drop-zone');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults);
+                document.body.addEventListener(eventName, preventDefaults);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'));
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'));
+            });
+
+            dropZone.addEventListener('drop', handleDrop);
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                loadAudioFile(files[0]);
+            }
+        }
+
+        function setupFileInput() {
+            const fileInput = document.getElementById('file-input');
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    loadAudioFile(e.target.files[0]);
+                }
+            });
+        }
+
+        function loadAudioFile(file) {
+            // Display file name
+            document.getElementById('file-name').textContent = file.name;
+
+            // Clean up previous audio if exists
+            if (audioElement) {
+                audioElement.pause();
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
+            }
+
+            // Close previous audio context
+            if (audioContext) {
+                audioContext.close();
+            }
+
+            // Create audio element
+            audioElement = new Audio();
+            audioElement.crossOrigin = 'anonymous';
+            audioElement.src = URL.createObjectURL(file);
+
+            // Initialize Web Audio API
+            setupAudioContext();
+
+            // Enable controls
+            enableControls();
+
+            // Reset bar heights
+            barHeightsLeft.fill(0);
+            barHeightsRight.fill(0);
+
+            // Reset progress bar
+            document.getElementById('progress-bar').value = 0;
+            document.getElementById('progress-bar').disabled = true;
+            document.getElementById('current-time').textContent = '0:00';
+            document.getElementById('duration').textContent = '0:00';
+
+            // Reset play/pause button
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            playPauseBtn.textContent = '▶';
+            playPauseBtn.classList.remove('playing');
+
+            // Setup audio element event listeners for progress
+            setupAudioEvents();
+        }
+
+        function setupAudioContext() {
+            // Create AudioContext
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Create source from audio element
+            sourceNode = audioContext.createMediaElementSource(audioElement);
+
+            // Create channel splitter (stereo = 2 channels)
+            splitterNode = audioContext.createChannelSplitter(2);
+
+            // Create analysers for each channel
+            analyserLeft = audioContext.createAnalyser();
+            analyserRight = audioContext.createAnalyser();
+
+            // Configure analysers
+            analyserLeft.fftSize = FFT_SIZE;
+            analyserRight.fftSize = FFT_SIZE;
+            analyserLeft.smoothingTimeConstant = 0.8;
+            analyserRight.smoothingTimeConstant = 0.8;
+
+            // Connect the audio graph
+            sourceNode.connect(splitterNode);
+            splitterNode.connect(analyserLeft, 0);  // Left channel
+            splitterNode.connect(analyserRight, 1); // Right channel
+
+            // Connect source to destination for playback
+            sourceNode.connect(audioContext.destination);
+        }
+
+        function getLogarithmicBands(analyser) {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            const sampleRate = audioContext.sampleRate;
+            const nyquist = sampleRate / 2;
+            const binWidth = nyquist / bufferLength;
+
+            // Frequency range (20Hz to 20kHz)
+            const minFreq = 20;
+            const maxFreq = 20000;
+            const bands = new Array(NUM_BANDS).fill(0);
+
+            for (let i = 0; i < NUM_BANDS; i++) {
+                // Calculate frequency range for this band (logarithmic)
+                const lowFreq = minFreq * Math.pow(maxFreq / minFreq, i / NUM_BANDS);
+                const highFreq = minFreq * Math.pow(maxFreq / minFreq, (i + 1) / NUM_BANDS);
+
+                // Convert to bin indices
+                const lowBin = Math.floor(lowFreq / binWidth);
+                const highBin = Math.min(Math.floor(highFreq / binWidth), bufferLength - 1);
+
+                // Average the values in this frequency range
+                let sum = 0;
+                let count = 0;
+                for (let j = lowBin; j <= highBin; j++) {
+                    sum += dataArray[j];
+                    count++;
+                }
+
+                bands[i] = count > 0 ? sum / count : 0;
+            }
+
+            return bands;
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            // Get current frequency data
+            const leftBands = getLogarithmicBands(analyserLeft);
+            const rightBands = getLogarithmicBands(analyserRight);
+
+            // Update bar heights with falling effect
+            updateBars('left-channel', leftBands, barHeightsLeft);
+            updateBars('right-channel', rightBands, barHeightsRight);
+        }
+
+        function updateBars(containerId, newValues, currentHeights) {
+            const bars = document.querySelectorAll(`#${containerId} .bars-container .bar`);
+            const containerHeight = 280; // Max height in pixels
+            const totalEnergy = newValues.reduce((a, b) => a + b, 0);
+
+            for (let i = 0; i < NUM_BANDS; i++) {
+                // Convert 0-255 to pixel height
+                const targetHeight = (newValues[i] / 255) * containerHeight;
+
+                // Rising: instant, Falling: gradual
+                if (targetHeight > currentHeights[i]) {
+                    currentHeights[i] = targetHeight;
+                } else {
+                    currentHeights[i] = Math.max(
+                        targetHeight,
+                        currentHeights[i] - fallRate
+                    );
+                }
+
+                // Apply height to DOM element
+                bars[i].style.height = Math.max(2, currentHeights[i]) + 'px';
+
+                // Update tooltip content
+                const tooltip = bars[i].querySelector('.bar-tooltip');
+                if (tooltip) {
+                    const range = FREQUENCY_RANGES[i];
+                    const amplitude = Math.round(newValues[i]);
+                    const percent = totalEnergy > 0 ? ((newValues[i] / totalEnergy) * 100).toFixed(1) : '0.0';
+                    tooltip.innerHTML = `<strong>${formatFreq(range.low)} - ${formatFreq(range.high)}</strong><br>Amplitude: ${amplitude}<br>Energy: ${percent}%`;
+                }
+            }
+        }
+
+        function setupControls() {
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            const restartBtn = document.getElementById('restart-btn');
+
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            restartBtn.addEventListener('click', restart);
+        }
+
+        function togglePlayPause() {
+            const playPauseBtn = document.getElementById('play-pause-btn');
+
+            if (audioElement.paused) {
+                play();
+                playPauseBtn.textContent = '⏸';
+                playPauseBtn.classList.add('playing');
+            } else {
+                pause();
+                playPauseBtn.textContent = '▶';
+                playPauseBtn.classList.remove('playing');
+            }
+        }
+
+        function play() {
+            // Resume AudioContext if suspended
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            audioElement.play();
+            animate();
+        }
+
+        function pause() {
+            audioElement.pause();
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+        }
+
+        function restart() {
+            audioElement.currentTime = 0;
+            const playPauseBtn = document.getElementById('play-pause-btn');
+            play();
+            playPauseBtn.textContent = '⏸';
+            playPauseBtn.classList.add('playing');
+        }
+
+        function enableControls() {
+            document.getElementById('play-pause-btn').disabled = false;
+            document.getElementById('restart-btn').disabled = false;
+        }
+
+        function setupSlider() {
+            const slider = document.getElementById('fall-rate');
+            const valueDisplay = document.getElementById('fall-rate-value');
+
+            slider.addEventListener('input', (e) => {
+                fallRate = parseInt(e.target.value);
+                valueDisplay.textContent = fallRate;
+            });
+        }
+
+        function setupProgressBar() {
+            const progressBar = document.getElementById('progress-bar');
+
+            // When user starts dragging
+            progressBar.addEventListener('mousedown', () => {
+                isSeeking = true;
+            });
+
+            // When user is dragging
+            progressBar.addEventListener('input', (e) => {
+                if (audioElement && audioElement.duration) {
+                    const seekTime = (e.target.value / 100) * audioElement.duration;
+                    document.getElementById('current-time').textContent = formatTime(seekTime);
+                }
+            });
+
+            // When user releases (seeks to position)
+            progressBar.addEventListener('change', (e) => {
+                if (audioElement && audioElement.duration) {
+                    const seekTime = (e.target.value / 100) * audioElement.duration;
+                    audioElement.currentTime = seekTime;
+                }
+                isSeeking = false;
+            });
+
+            // Handle mouse up outside the slider
+            document.addEventListener('mouseup', () => {
+                isSeeking = false;
+            });
+        }
+
+        function setupAudioEvents() {
+            // Update duration when metadata is loaded
+            audioElement.addEventListener('loadedmetadata', () => {
+                document.getElementById('duration').textContent = formatTime(audioElement.duration);
+                document.getElementById('progress-bar').disabled = false;
+            });
+
+            // Update progress as audio plays
+            audioElement.addEventListener('timeupdate', () => {
+                if (!isSeeking && audioElement.duration) {
+                    const progress = (audioElement.currentTime / audioElement.duration) * 100;
+                    document.getElementById('progress-bar').value = progress;
+                    document.getElementById('current-time').textContent = formatTime(audioElement.currentTime);
+                }
+            });
+
+            // Handle audio ended
+            audioElement.addEventListener('ended', () => {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                const playPauseBtn = document.getElementById('play-pause-btn');
+                playPauseBtn.textContent = '▶';
+                playPauseBtn.classList.remove('playing');
+            });
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+    </script>
+</body>
+
+</html>
