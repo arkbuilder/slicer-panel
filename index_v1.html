@@ -13,145 +13,44 @@
         }
 
         body {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            background: #0a0a0a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #ffffff;
             min-height: 100vh;
-            padding: 40px 20px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 30px;
+            gap: 20px;
         }
 
         h1 {
-            font-family: 'Arial Black', sans-serif;
-            font-size: 14px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: #666;
-            margin-bottom: 20px;
-        }
-
-        /* Hardware Unit */
-        .hardware-unit {
-            background: url('brushed-metal-texture.png') center/cover;
-            background-color: #8b8b8b;
-            border: 3px solid #2a2a2a;
-            border-radius: 8px;
-            box-shadow:
-                0 10px 40px rgba(0, 0, 0, 0.8),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.5);
-            padding: 40px;
-            max-width: 1400px;
-            width: 100%;
-            position: relative;
-        }
-
-        /* Corner Screws */
-        .screw {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            background: radial-gradient(circle at 30% 30%, #444, #1a1a1a);
-            border-radius: 50%;
-            border: 1px solid #0a0a0a;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
-        }
-
-        .screw::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 10px;
-            height: 1.5px;
-            background: #2a2a2a;
-            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .screw::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(90deg);
-            width: 10px;
-            height: 1.5px;
-            background: #2a2a2a;
-            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .screw.top-left {
-            top: 15px;
-            left: 15px;
-        }
-
-        .screw.top-right {
-            top: 15px;
-            right: 15px;
-        }
-
-        .screw.bottom-left {
-            bottom: 15px;
-            left: 15px;
-        }
-
-        .screw.bottom-right {
-            bottom: 15px;
-            right: 15px;
-        }
-
-        /* Brand Header */
-        .brand-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .brand-name {
-            font-family: 'Arial Black', sans-serif;
-            font-size: 24px;
-            letter-spacing: 4px;
-            color: #2a2a2a;
-            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
-            margin-bottom: 5px;
-        }
-
-        .model-name {
-            font-size: 11px;
-            letter-spacing: 2px;
-            color: #555;
-            text-transform: uppercase;
+            margin-bottom: 10px;
         }
 
         #upload-section {
             width: 100%;
-            margin-bottom: 20px;
+            max-width: 500px;
         }
 
         #drop-zone {
-            border: 2px solid #4a4a4a;
-            border-radius: 4px;
-            padding: 20px;
+            border: 3px dashed #4a90d9;
+            border-radius: 10px;
+            padding: 40px;
             text-align: center;
-            background: rgba(0, 0, 0, 0.3);
-            cursor: pointer;
             transition: all 0.3s ease;
+            background: rgba(74, 144, 217, 0.1);
+            cursor: pointer;
         }
 
         #drop-zone.drag-over {
-            border-color: #ffaa00;
-            background: rgba(255, 170, 0, 0.1);
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.2);
+            transform: scale(1.02);
         }
 
         #drop-zone p {
-            margin: 5px 0;
-            color: #666;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            margin: 10px 0;
         }
 
         #drop-zone input[type="file"] {
@@ -160,79 +59,153 @@
 
         .file-button {
             display: inline-block;
-            padding: 8px 20px;
-            background: #3a3a3a;
-            border: 1px solid #2a2a2a;
-            border-radius: 3px;
+            padding: 10px 30px;
+            background: #4a90d9;
+            border-radius: 5px;
             cursor: pointer;
             margin-top: 10px;
-            color: #aaa;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            transition: background 0.3s;
         }
 
         .file-button:hover {
-            background: #4a4a4a;
+            background: #357abd;
         }
 
         #file-name {
             text-align: center;
             margin-top: 10px;
-            color: #ffaa00;
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        #control-bar {
+            width: 100%;
+            max-width: 700px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px 25px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .control-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #restart-btn {
+            background: #4a90d9;
+            color: #fff;
+        }
+
+        #restart-btn:hover:not(:disabled) {
+            background: #357abd;
+            transform: scale(1.1);
+        }
+
+        #play-pause-btn {
+            background: #00ff88;
+            color: #000;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+
+        #play-pause-btn:hover:not(:disabled) {
+            transform: scale(1.1);
+        }
+
+        #play-pause-btn.playing {
+            background: #ffaa00;
+        }
+
+        #slider-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+
+        #slider-section label {
+            font-weight: bold;
+        }
+
+        #fall-rate {
+            width: 200px;
+            accent-color: #4a90d9;
+        }
+
+        #fall-rate-value {
+            min-width: 30px;
+            text-align: center;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .time-display {
             font-family: monospace;
-            font-size: 11px;
+            font-size: 14px;
+            min-width: 50px;
+            text-align: center;
+            flex-shrink: 0;
         }
 
-        /* Glass Display Window */
-        .display-window {
-            background: #0a0a0a;
-            border: 4px solid #2a2a2a;
-            border-radius: 6px;
-            padding: 30px 20px;
-            position: relative;
-            box-shadow:
-                inset 0 4px 12px rgba(0, 0, 0, 0.9),
-                inset 0 0 40px rgba(0, 0, 0, 0.5),
-                0 2px 0 rgba(255, 255, 255, 0.1);
-            margin-bottom: 30px;
+        #current-time {
+            color: #00ff88;
         }
 
-        .display-window::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 40%;
-            background: linear-gradient(180deg,
-                    rgba(255, 255, 255, 0.03) 0%,
-                    transparent 100%);
-            pointer-events: none;
-            border-radius: 3px 3px 0 0;
+        #duration {
+            color: #4a90d9;
+        }
+
+        #progress-bar {
+            flex: 1;
+            height: 8px;
+            accent-color: #00ff88;
+            cursor: pointer;
+        }
+
+        #progress-bar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         #visualizer-container {
             display: flex;
             gap: 40px;
             width: 100%;
+            max-width: 1200px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         .channel {
             flex: 1;
+            min-width: 400px;
             max-width: 550px;
         }
 
         .channel h3 {
             text-align: center;
-            margin-bottom: 15px;
-            color: #666;
-            font-size: 10px;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            font-weight: normal;
+            margin-bottom: 10px;
+            color: #4a90d9;
         }
 
         .bars-container {
@@ -240,66 +213,39 @@
             align-items: flex-end;
             justify-content: space-between;
             height: 300px;
-            background: #000000;
-            border: 1px solid #1a1a1a;
-            border-radius: 3px;
-            padding: 10px 8px;
-            gap: 3px;
-            position: relative;
-        }
-
-        /* LED Grid Background */
-        .bars-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image:
-                repeating-linear-gradient(0deg,
-                    transparent,
-                    transparent 29px,
-                    rgba(255, 255, 255, 0.02) 29px,
-                    rgba(255, 255, 255, 0.02) 30px);
-            pointer-events: none;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            gap: 4px;
         }
 
         .bar {
             flex: 1;
-            background: linear-gradient(to top,
-                    rgba(200, 200, 200, 0.9) 0%,
-                    rgba(220, 220, 220, 0.8) 60%,
-                    rgba(255, 170, 0, 0.9) 85%,
-                    rgba(255, 100, 0, 1) 100%);
-            border-radius: 1px;
+            background: linear-gradient(to top, #00ff88, #4a90d9, #ff4466);
+            border-radius: 3px 3px 0 0;
             min-height: 2px;
-            box-shadow:
-                0 0 4px rgba(255, 255, 255, 0.3),
-                0 0 8px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
             cursor: pointer;
-            transition: filter 0.1s;
-            position: relative;
+            transition: filter 0.2s;
         }
 
         .bar:hover {
-            filter: brightness(1.4);
+            filter: brightness(1.3);
         }
 
         #tooltip {
             position: fixed;
-            background: rgba(10, 10, 10, 0.95);
-            border: 2px solid #4a4a4a;
-            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #4a90d9;
+            border-radius: 8px;
             padding: 12px 16px;
             pointer-events: none;
             z-index: 1000;
             display: none;
             color: #ffffff;
-            font-size: 11px;
-            line-height: 1.8;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
-            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
         #tooltip.visible {
@@ -307,251 +253,55 @@
         }
 
         .tooltip-line {
-            margin: 2px 0;
+            margin: 3px 0;
         }
 
         .tooltip-label {
-            color: #888;
-            font-weight: normal;
-            letter-spacing: 1px;
+            color: #4a90d9;
+            font-weight: bold;
         }
 
         .tooltip-value {
-            color: #ffaa00;
-            font-weight: bold;
-        }
-
-        /* Control Panel */
-        .control-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 40px;
-            padding: 0 20px;
-        }
-
-        .control-section {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .control-label {
-            font-size: 9px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #555;
-            font-weight: normal;
-        }
-
-        /* Transport Controls */
-        #control-bar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 15px 20px;
-            border-radius: 4px;
-            border: 1px solid #2a2a2a;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        .control-button {
-            width: 40px;
-            height: 40px;
-            border: 2px solid #2a2a2a;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-            background: radial-gradient(circle at 30% 30%, #4a4a4a, #2a2a2a);
-            color: #aaa;
-            box-shadow:
-                0 3px 6px rgba(0, 0, 0, 0.5),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .control-button:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        .control-button:hover:not(:disabled) {
-            background: radial-gradient(circle at 30% 30%, #5a5a5a, #3a3a3a);
-            box-shadow:
-                0 3px 8px rgba(0, 0, 0, 0.6),
-                inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        }
-
-        #play-pause-btn {
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
-        }
-
-        #play-pause-btn.playing {
-            color: #ffaa00;
-            box-shadow:
-                0 3px 8px rgba(255, 170, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .time-display {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            min-width: 45px;
-            text-align: center;
-            flex-shrink: 0;
-            color: #888;
-            letter-spacing: 1px;
-        }
-
-        #current-time {
-            color: #ffaa00;
-        }
-
-        #progress-bar {
-            flex: 1;
-            height: 6px;
-            accent-color: #ffaa00;
-            cursor: pointer;
-            background: #1a1a1a;
-            border-radius: 3px;
-        }
-
-        #progress-bar:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        /* Rotary Knobs */
-        .knob-container {
-            position: relative;
-            width: 70px;
-            height: 70px;
-        }
-
-        .knob {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #5a5a5a, #2a2a2a);
-            border: 3px solid #1a1a1a;
-            box-shadow:
-                0 4px 8px rgba(0, 0, 0, 0.6),
-                inset 0 2px 4px rgba(0, 0, 0, 0.5),
-                inset 0 -2px 4px rgba(255, 255, 255, 0.1);
-            position: relative;
-            cursor: pointer;
-            transition: all 0.1s ease;
-        }
-
-        .knob:hover {
-            background: radial-gradient(circle at 30% 30%, #6a6a6a, #3a3a3a);
-        }
-
-        .knob::before {
-            content: '';
-            position: absolute;
-            top: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 3px;
-            height: 18px;
-            background: #ffaa00;
-            border-radius: 2px;
-            box-shadow: 0 0 6px rgba(255, 170, 0, 0.6);
-        }
-
-        .knob-value {
-            text-align: center;
-            margin-top: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: #ffaa00;
-            font-weight: bold;
-            letter-spacing: 1px;
+            color: #00ff88;
         }
     </style>
 </head>
 
 <body>
-    <div class="hardware-unit">
-        <!-- Corner Screws -->
-        <div class="screw top-left"></div>
-        <div class="screw top-right"></div>
-        <div class="screw bottom-left"></div>
-        <div class="screw bottom-right"></div>
+    <h1>Audio FFT Visualizer</h1>
 
-        <!-- Brand Header -->
-        <div class="brand-header">
-            <div class="brand-name">RSX-2</div>
-            <div class="model-name">Reference Spectrum Analyzer</div>
+    <div id="upload-section">
+        <div id="drop-zone">
+            <p>Drag & Drop MP3 file here</p>
+            <p>or</p>
+            <input type="file" id="file-input" accept="audio/mp3,audio/mpeg,audio/*">
+            <label for="file-input" class="file-button">Choose File</label>
         </div>
+        <p id="file-name"></p>
+    </div>
 
-        <!-- File Upload Section -->
-        <div id="upload-section">
-            <div id="drop-zone">
-                <p>Load Audio Source</p>
-                <p>·</p>
-                <input type="file" id="file-input" accept="audio/mp3,audio/mpeg,audio/*">
-                <label for="file-input" class="file-button">Select File</label>
-            </div>
-            <p id="file-name"></p>
+    <div id="control-bar">
+        <button id="restart-btn" class="control-button" disabled>⏮</button>
+        <button id="play-pause-btn" class="control-button" disabled>▶</button>
+        <span id="current-time" class="time-display">0:00</span>
+        <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" disabled>
+        <span id="duration" class="time-display">0:00</span>
+    </div>
+
+    <div id="slider-section">
+        <label for="fall-rate">Fall Rate:</label>
+        <input type="range" id="fall-rate" min="1" max="20" value="5">
+        <span id="fall-rate-value">5</span>
+    </div>
+
+    <div id="visualizer-container">
+        <div id="left-channel" class="channel">
+            <h3>Left Channel</h3>
+            <div class="bars-container"></div>
         </div>
-
-        <!-- Glass Display Window -->
-        <div class="display-window">
-            <div id="visualizer-container">
-                <div id="left-channel" class="channel">
-                    <h3>Left Channel</h3>
-                    <div class="bars-container"></div>
-                </div>
-                <div id="right-channel" class="channel">
-                    <h3>Right Channel</h3>
-                    <div class="bars-container"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Control Panel -->
-        <div class="control-panel">
-            <!-- Decay Control -->
-            <div class="control-section">
-                <div class="control-label">Decay</div>
-                <div class="knob-container">
-                    <div class="knob" id="fall-rate-knob"></div>
-                </div>
-                <div class="knob-value" id="fall-rate-value">5</div>
-                <input type="range" id="fall-rate" min="1" max="20" value="5" style="display: none;">
-            </div>
-
-            <!-- Transport Controls -->
-            <div class="control-section">
-                <div class="control-label">Transport</div>
-                <div id="control-bar">
-                    <button id="restart-btn" class="control-button" disabled>⏮</button>
-                    <button id="play-pause-btn" class="control-button" disabled>▶</button>
-                    <span id="current-time" class="time-display">0:00</span>
-                    <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" disabled>
-                    <span id="duration" class="time-display">0:00</span>
-                </div>
-            </div>
-
-            <!-- Placeholder for symmetry -->
-            <div class="control-section">
-                <div class="control-label">Monitor</div>
-                <div class="knob-container">
-                    <div class="knob" id="gain-knob"></div>
-                </div>
-                <div class="knob-value">0dB</div>
-            </div>
+        <div id="right-channel" class="channel">
+            <h3>Right Channel</h3>
+            <div class="bars-container"></div>
         </div>
     </div>
 
@@ -938,90 +688,10 @@
         function setupSlider() {
             const slider = document.getElementById('fall-rate');
             const valueDisplay = document.getElementById('fall-rate-value');
-            const knob = document.getElementById('fall-rate-knob');
-            let isDragging = false;
-            let lastAngle = null;
 
-            // Update knob rotation based on value
-            function updateKnobRotation(value) {
-                const minAngle = -135;
-                const maxAngle = 135;
-                const angle = minAngle + ((value - 1) / 19) * (maxAngle - minAngle);
-                knob.style.transform = `rotate(${angle}deg)`;
-            }
-
-            // Calculate angle from knob center to mouse position
-            function getAngleFromCenter(e, rect) {
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const deltaX = e.clientX - centerX;
-                const deltaY = e.clientY - centerY;
-                // atan2 returns angle in radians, convert to degrees
-                // Subtract 90 to make 0 degrees point up
-                return Math.atan2(deltaY, deltaX) * (180 / Math.PI) - 90;
-            }
-
-            // Normalize angle difference to handle wraparound
-            function getAngleDelta(angle1, angle2) {
-                let delta = angle2 - angle1;
-                // Normalize to -180 to 180 range
-                while (delta > 180) delta -= 360;
-                while (delta < -180) delta += 360;
-                return delta;
-            }
-
-            // Initialize knob position
-            updateKnobRotation(parseInt(slider.value));
-
-            // Mouse events for orbital knob control
-            knob.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                const rect = knob.getBoundingClientRect();
-                lastAngle = getAngleFromCenter(e, rect);
-                e.preventDefault();
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-
-                const rect = knob.getBoundingClientRect();
-                const currentAngle = getAngleFromCenter(e, rect);
-
-                if (lastAngle !== null) {
-                    const angleDelta = getAngleDelta(lastAngle, currentAngle);
-                    const currentValue = parseInt(slider.value);
-
-                    // Convert angle change to value change (more sensitive for better control)
-                    const sensitivity = 0.15; // Adjust this for more/less sensitivity
-                    const valueChange = Math.round(angleDelta * sensitivity);
-
-                    if (valueChange !== 0) {
-                        const newValue = Math.max(1, Math.min(20, currentValue + valueChange));
-
-                        if (newValue !== currentValue) {
-                            slider.value = newValue;
-                            fallRate = newValue;
-                            valueDisplay.textContent = fallRate;
-                            updateKnobRotation(newValue);
-                        }
-                    }
-                }
-
-                lastAngle = currentAngle;
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    isDragging = false;
-                    lastAngle = null;
-                }
-            });
-
-            // Also support the hidden slider for accessibility
             slider.addEventListener('input', (e) => {
                 fallRate = parseInt(e.target.value);
                 valueDisplay.textContent = fallRate;
-                updateKnobRotation(fallRate);
             });
         }
 
