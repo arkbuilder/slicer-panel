@@ -357,19 +357,23 @@
         }
 
         .control-section:nth-child(1) {
-            flex: 0 0 15%;
+            flex: 0 0 13%;
         }
 
         .control-section:nth-child(2) {
-            flex: 0 0 15%;
+            flex: 0 0 13%;
         }
 
         .control-section:nth-child(3) {
-            flex: 0 0 30%;
+            flex: 0 0 28%;
         }
 
         .control-section:nth-child(4) {
-            flex: 0 0 30%;
+            flex: 0 0 13%;
+        }
+
+        .control-section:nth-child(5) {
+            flex: 0 0 13%;
         }
 
         /* Ensure all interactive elements have the same height */
@@ -591,6 +595,11 @@
             margin-right: 5px;
         }
 
+        .layout-mode-section {
+            margin-right: -45px;
+            margin-left: 5px;
+        }
+
         .toggle-labels {
             display: flex;
             justify-content: space-between;
@@ -679,7 +688,7 @@
                     </div>
                 </div>
                 <div class="knob-value" id="fall-rate-value">5</div>
-                <input type="range" id="fall-rate" min="1" max="20" value="5" style="display: none;">
+                <input type="range" id="fall-rate" min="1" max="20" value="10" style="display: none;">
             </div>
 
             <!-- Mode Toggle -->
@@ -703,6 +712,18 @@
                     <span id="current-time" class="time-display">0:00</span>
                     <input type="range" id="progress-bar" min="0" max="100" value="0" step="0.1" disabled>
                     <span id="duration" class="time-display">0:00</span>
+                </div>
+            </div>
+
+            <!-- Layout Mode Toggle -->
+            <div class="control-section layout-mode-section">
+                <div class="control-label">Layout Mode</div>
+                <div class="toggle-switch-container">
+                    <div class="toggle-switch" id="layout-toggle"></div>
+                </div>
+                <div class="toggle-labels">
+                    <span id="label-linear" class="active">Linear</span>
+                    <span id="label-radial">Radial</span>
                 </div>
             </div>
 
