@@ -265,6 +265,24 @@
             pointer-events: none;
         }
 
+        /* LED Segment Masking */
+        .bars-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 5px,
+                    #000000 5px,
+                    #000000 7px);
+            pointer-events: none;
+            z-index: 10;
+        }
+
         .bar {
             flex: 1;
             background: linear-gradient(to top,
@@ -594,6 +612,9 @@
         let leftBandData = new Array(NUM_BANDS).fill(0);
         let rightBandData = new Array(NUM_BANDS).fill(0);
 
+        // Tooltip state
+        let hoveredBar = null; // { bandIndex, channel, mouseX, mouseY }
+
         // Configuration
         const FFT_SIZE = 2048;
         let fallRate = 5;
@@ -639,7 +660,13 @@
 
                 // Add hover event listeners
                 bar.addEventListener('mouseenter', handleBarHover);
-                bar.addEventListener('mousemove', handleBarHover);
+                bar.addEventListener('mousemove', (e) => {
+                    // Update mouse position for tooltip
+                    if (hoveredBar) {
+                        hoveredBar.mouseX = e.clientX;
+                        hoveredBar.mouseY = e.clientY;
+                    }
+                });
                 bar.addEventListener('mouseleave', hideTooltip);
 
                 container.appendChild(bar);
@@ -649,6 +676,23 @@
         function handleBarHover(event) {
             const bandIndex = parseInt(event.target.dataset.bandIndex);
             const channel = event.target.dataset.channel;
+
+            // Store hover state
+            hoveredBar = {
+                bandIndex: bandIndex,
+                channel: channel,
+                mouseX: event.clientX,
+                mouseY: event.clientY
+            };
+
+            // Initial tooltip update
+            updateTooltip();
+        }
+
+        function updateTooltip() {
+            if (!hoveredBar) return;
+
+            const { bandIndex, channel, mouseX, mouseY } = hoveredBar;
             const bandData = channel === 'left' ? leftBandData : rightBandData;
 
             // Get frequency range
@@ -687,15 +731,15 @@
             const offsetX = 15;
             const offsetY = 15;
 
-            let x = event.clientX + offsetX;
-            let y = event.clientY + offsetY;
+            let x = mouseX + offsetX;
+            let y = mouseY + offsetY;
 
             // Keep tooltip on screen
             if (x + tooltipWidth > window.innerWidth) {
-                x = event.clientX - tooltipWidth - offsetX;
+                x = mouseX - tooltipWidth - offsetX;
             }
             if (y + tooltipHeight > window.innerHeight) {
-                y = event.clientY - tooltipHeight - offsetY;
+                y = mouseY - tooltipHeight - offsetY;
             }
 
             tooltip.style.left = x + 'px';
@@ -704,6 +748,7 @@
         }
 
         function hideTooltip() {
+            hoveredBar = null;
             const tooltip = document.getElementById('tooltip');
             tooltip.classList.remove('visible');
         }
@@ -880,6 +925,9 @@
             // Update bar heights with falling effect
             updateBars('left-channel', leftBands, barHeightsLeft);
             updateBars('right-channel', rightBands, barHeightsRight);
+
+            // Continuously update tooltip if hovering
+            updateTooltip();
         }
 
         function updateBars(containerId, newValues, currentHeights) {
