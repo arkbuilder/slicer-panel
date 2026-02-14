@@ -804,6 +804,10 @@
         let radialLeftCtx = null;
         let radialRightCtx = null;
 
+        // Pause decay tracking
+        let pauseDecayFrames = 0;
+        const maxDecayFrames = 60; // ~1 second at 60fps
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', init);
 
@@ -1114,6 +1118,15 @@
 
             // Continuously update tooltip if hovering
             updateTooltip();
+
+            // Stop animation when paused and fully decayed
+            if (audioElement.paused) {
+                const maxHeight = Math.max(...barHeightsLeft, ...barHeightsRight);
+                if (maxHeight <= 2) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            }
         }
 
         function animateScope() {
@@ -1131,6 +1144,18 @@
             drawScope(canvasLeftCtx, leftDataArray);
             // Draw right channel
             drawScope(canvasRightCtx, rightDataArray);
+
+            // Stop animation when paused and fully faded
+            if (audioElement.paused) {
+                pauseDecayFrames++;
+                if (pauseDecayFrames >= maxDecayFrames) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                    pauseDecayFrames = 0;
+                }
+            } else {
+                pauseDecayFrames = 0;
+            }
         }
 
         function drawScope(ctx, dataArray) {
@@ -1227,6 +1252,26 @@
                 drawRadialScope(radialLeftCtx, leftDataArray);
                 drawRadialScope(radialRightCtx, rightDataArray);
             }
+
+            // Stop animation when paused and fully decayed
+            if (audioElement.paused) {
+                if (displayMode === 'spectrum') {
+                    const maxHeight = Math.max(...barHeightsLeft, ...barHeightsRight);
+                    if (maxHeight <= 2) {
+                        cancelAnimationFrame(animationId);
+                        animationId = null;
+                    }
+                } else {
+                    pauseDecayFrames++;
+                    if (pauseDecayFrames >= maxDecayFrames) {
+                        cancelAnimationFrame(animationId);
+                        animationId = null;
+                        pauseDecayFrames = 0;
+                    }
+                }
+            } else {
+                pauseDecayFrames = 0;
+            }
         }
 
         function drawRadialSpectrum(ctx, heights) {
@@ -1234,8 +1279,8 @@
             const height = ctx.canvas.height;
             const centerX = width / 2;
             const centerY = height / 2;
-            const baseRadius = 60;
-            const maxBarHeight = 80;
+            const baseRadius = 40;
+            const maxBarHeight = 90;
 
             // Clear canvas
             ctx.fillStyle = '#000000';
@@ -1244,65 +1289,63 @@
             // Draw circular grid
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.lineWidth = 1;
-            for (let r = baseRadius; r <= baseRadius + maxBarHeight; r += 20) {
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-                ctx.stroke();
-            }
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+            ctx.stroke();
 
             ctx.save();
             ctx.translate(centerX, centerY);
             ctx.rotate(rotationAngle);
 
-            // Draw bars around semicircle
-            // Bass at bottom (180°), highs at top (0°)
-            // Arrange from 225° (bottom-left) to 315° (bottom-right) via top
-            const startAngle = Math.PI * 1.25; // 225 degrees
-            const endAngle = Math.PI * 1.75 + Math.PI * 2; // 315 degrees (going clockwise through top)
-            const totalAngle = Math.PI * 1.5; // 270 degrees of arc
+            // Draw bars around full circle
+            // Start at bottom (6 o'clock) and go clockwise
+            const startAngle = Math.PI / 2; // 90 degrees (bottom)
+            const totalAngle = Math.PI * 2; // Full circle
             const barAngle = totalAngle / NUM_BANDS;
-            const barWidth = 0.8; // Fraction of angle segment to use
+            const barWidth = 0.75; // Fraction of angle segment to use
 
             for (let i = 0; i < NUM_BANDS; i++) {
                 const angle = startAngle + (i + 0.5) * barAngle;
-                // Normalize bar height with square root to amplify smaller values
-                const normalizedHeight = Math.sqrt(heights[i] / 280);
-                const barHeight = normalizedHeight * maxBarHeight;
+
+                // Get height and normalize with sqrt for better visual range
+                const rawHeight = heights[i];
+                const normalizedHeight = Math.sqrt(rawHeight / 280);
+                const barHeight = Math.max(4, normalizedHeight * maxBarHeight);
 
                 // Calculate bar corners
                 const innerRadius = baseRadius;
-                const outerRadius = baseRadius + Math.max(2, barHeight);
+                const outerRadius = baseRadius + barHeight;
 
                 const angleStart = angle - (barAngle * barWidth) / 2;
                 const angleEnd = angle + (barAngle * barWidth) / 2;
 
-                // Create gradient for bar
+                // Create gradient for bar based on height
                 const gradient = ctx.createRadialGradient(0, 0, innerRadius, 0, 0, outerRadius);
-                const intensity = barHeight / maxBarHeight;
-                if (intensity < 0.6) {
+                const intensity = normalizedHeight;
+
+                if (intensity < 0.5) {
+                    gradient.addColorStop(0, 'rgba(180, 180, 180, 0.9)');
+                    gradient.addColorStop(1, 'rgba(200, 200, 200, 0.8)');
+                } else if (intensity < 0.75) {
                     gradient.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
-                    gradient.addColorStop(1, 'rgba(220, 220, 220, 0.8)');
-                } else if (intensity < 0.85) {
-                    gradient.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
-                    gradient.addColorStop(0.6, 'rgba(220, 220, 220, 0.8)');
+                    gradient.addColorStop(0.5, 'rgba(220, 220, 220, 0.8)');
                     gradient.addColorStop(1, 'rgba(255, 170, 0, 0.9)');
                 } else {
                     gradient.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
-                    gradient.addColorStop(0.5, 'rgba(220, 220, 220, 0.8)');
-                    gradient.addColorStop(0.75, 'rgba(255, 170, 0, 0.9)');
-                    gradient.addColorStop(1, 'rgba(255, 100, 0, 1)');
+                    gradient.addColorStop(0.4, 'rgba(255, 200, 100, 0.9)');
+                    gradient.addColorStop(0.7, 'rgba(255, 170, 0, 0.9)');
+                    gradient.addColorStop(1, 'rgba(255, 80, 0, 1)');
                 }
 
                 ctx.fillStyle = gradient;
+                ctx.shadowColor = 'rgba(255, 200, 100, 0.3)';
+                ctx.shadowBlur = 4;
+
                 ctx.beginPath();
                 ctx.arc(0, 0, innerRadius, angleStart, angleEnd);
                 ctx.arc(0, 0, outerRadius, angleEnd, angleStart, true);
                 ctx.closePath();
                 ctx.fill();
-
-                // Add glow effect
-                ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
-                ctx.shadowBlur = 4;
             }
 
             ctx.restore();
@@ -1415,16 +1458,19 @@
             }
             audioElement.play();
 
-            // Start appropriate animation based on mode
-            startAnimation();
+            // Reset decay counter
+            pauseDecayFrames = 0;
+
+            // Start appropriate animation based on mode (restarts if was stopped)
+            if (!animationId) {
+                startAnimation();
+            }
         }
 
         function pause() {
             audioElement.pause();
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
-            }
+            // Don't cancel animation - let it continue to decay naturally
+            // Animation will stop itself when values reach zero
         }
 
         function restart() {
