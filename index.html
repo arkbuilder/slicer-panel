@@ -648,6 +648,40 @@
         .bars-container.hidden {
             display: none;
         }
+
+        /* Test Mode Button */
+        #test-mode-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(58, 58, 58, 0.9);
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            color: #aaa;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            z-index: 2000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s;
+        }
+
+        #test-mode-btn:hover {
+            background: rgba(74, 74, 74, 0.9);
+        }
+
+        #test-mode-btn.active {
+            background: rgba(255, 170, 0, 0.9);
+            color: #0a0a0a;
+            border-color: #ffaa00;
+            box-shadow: 0 2px 12px rgba(255, 170, 0, 0.4);
+        }
+
+        #test-mode-btn.hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -758,8 +792,12 @@
     </div>
 
     <div id="tooltip"></div>
+    <button id="test-mode-btn" class="hidden">Test Mode</button>
 
     <script>
+        // Configuration - Test Mode
+        const ENABLE_TEST_MODE = false; // Set to false to hide test mode button
+
         // Audio Context and Nodes
         let audioContext = null;
         let sourceNode = null;
@@ -796,6 +834,13 @@
         let rotationAngle = 0; // For radial mode rotation
         const rotationSpeed = 0.002; // Radians per frame
 
+        // Test Mode
+        let testModeActive = false;
+        let frozenFrequencyDataLeft = null;
+        let frozenFrequencyDataRight = null;
+        let frozenTimeDomainDataLeft = null;
+        let frozenTimeDomainDataRight = null;
+
         // Canvas contexts for oscilloscope
         let canvasLeftCtx = null;
         let canvasRightCtx = null;
@@ -824,6 +869,7 @@
             setupModeToggle();
             setupLayoutToggle();
             initCanvases();
+            setupTestMode();
         }
 
         function calculateFrequencyRanges() {
@@ -1064,7 +1110,12 @@
             gainNode.connect(audioContext.destination);
         }
 
-        function getLogarithmicBands(analyser) {
+        function getLogarithmicBands(analyser, useLeftChannel = true) {
+            // If test mode is active, use frozen data
+            if (testModeActive) {
+                return useLeftChannel ? frozenFrequencyDataLeft.slice() : frozenFrequencyDataRight.slice();
+            }
+
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
@@ -1105,8 +1156,8 @@
             animationId = requestAnimationFrame(animate);
 
             // Get current frequency data
-            const leftBands = getLogarithmicBands(analyserLeft);
-            const rightBands = getLogarithmicBands(analyserRight);
+            const leftBands = getLogarithmicBands(analyserLeft, true);
+            const rightBands = getLogarithmicBands(analyserRight, false);
 
             // Store band data for tooltip
             leftBandData = leftBands.slice();
@@ -1134,11 +1185,18 @@
 
             // Get time domain data
             const bufferLength = analyserLeft.fftSize;
-            const leftDataArray = new Uint8Array(bufferLength);
-            const rightDataArray = new Uint8Array(bufferLength);
+            let leftDataArray, rightDataArray;
 
-            analyserLeft.getByteTimeDomainData(leftDataArray);
-            analyserRight.getByteTimeDomainData(rightDataArray);
+            if (testModeActive) {
+                // Use frozen data
+                leftDataArray = frozenTimeDomainDataLeft;
+                rightDataArray = frozenTimeDomainDataRight;
+            } else {
+                leftDataArray = new Uint8Array(bufferLength);
+                rightDataArray = new Uint8Array(bufferLength);
+                analyserLeft.getByteTimeDomainData(leftDataArray);
+                analyserRight.getByteTimeDomainData(rightDataArray);
+            }
 
             // Draw left channel
             drawScope(canvasLeftCtx, leftDataArray);
@@ -1211,8 +1269,8 @@
 
             if (displayMode === 'spectrum') {
                 // Get frequency data
-                const leftBands = getLogarithmicBands(analyserLeft);
-                const rightBands = getLogarithmicBands(analyserRight);
+                const leftBands = getLogarithmicBands(analyserLeft, true);
+                const rightBands = getLogarithmicBands(analyserRight, false);
 
                 // Store band data for tooltip
                 leftBandData = leftBands.slice();
@@ -1242,11 +1300,18 @@
             } else {
                 // Get time domain data for scope
                 const bufferLength = analyserLeft.fftSize;
-                const leftDataArray = new Uint8Array(bufferLength);
-                const rightDataArray = new Uint8Array(bufferLength);
+                let leftDataArray, rightDataArray;
 
-                analyserLeft.getByteTimeDomainData(leftDataArray);
-                analyserRight.getByteTimeDomainData(rightDataArray);
+                if (testModeActive) {
+                    // Use frozen data
+                    leftDataArray = frozenTimeDomainDataLeft;
+                    rightDataArray = frozenTimeDomainDataRight;
+                } else {
+                    leftDataArray = new Uint8Array(bufferLength);
+                    rightDataArray = new Uint8Array(bufferLength);
+                    analyserLeft.getByteTimeDomainData(leftDataArray);
+                    analyserRight.getByteTimeDomainData(rightDataArray);
+                }
 
                 // Draw radial scope
                 drawRadialScope(radialLeftCtx, leftDataArray);
@@ -1309,8 +1374,8 @@
 
                 // Get height and normalize with sqrt for better visual range
                 const rawHeight = heights[i];
-                const normalizedHeight = Math.sqrt(rawHeight / 280);
-                const barHeight = Math.max(4, normalizedHeight * maxBarHeight);
+                const normalizedHeight = rawHeight / 280 * maxBarHeight;
+                const barHeight = Math.max(4, normalizedHeight);
 
                 // Calculate bar corners
                 const innerRadius = baseRadius;
@@ -1860,6 +1925,83 @@
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function setupTestMode() {
+            const btn = document.getElementById('test-mode-btn');
+
+            // Show/hide button based on constant
+            if (!ENABLE_TEST_MODE) {
+                return;
+            }
+            btn.classList.remove('hidden');
+
+            btn.addEventListener('click', () => {
+                testModeActive = !testModeActive;
+
+                if (testModeActive) {
+                    // Generate and freeze random data
+                    generateRandomTestData();
+                    btn.classList.add('active');
+
+                    // Start animation if not already running
+                    if (!animationId) {
+                        startAnimation();
+                    }
+                } else {
+                    // Deactivate test mode
+                    btn.classList.remove('active');
+                    frozenFrequencyDataLeft = null;
+                    frozenFrequencyDataRight = null;
+                    frozenTimeDomainDataLeft = null;
+                    frozenTimeDomainDataRight = null;
+                }
+            });
+        }
+
+        function generateRandomTestData() {
+            // Generate random frequency data (spectrum mode)
+            frozenFrequencyDataLeft = new Array(NUM_BANDS);
+            frozenFrequencyDataRight = new Array(NUM_BANDS);
+
+            for (let i = 0; i < NUM_BANDS; i++) {
+                // Create more realistic frequency distribution
+                // Lower frequencies typically have more energy
+                const frequencyBias = Math.pow(1 - (i / NUM_BANDS), 1.5);
+                const baseAmplitude = Math.random() * 255;
+                frozenFrequencyDataLeft[i] = baseAmplitude * (0.5 + frequencyBias * 0.5);
+                frozenFrequencyDataRight[i] = baseAmplitude * (0.5 + frequencyBias * 0.5) * (0.9 + Math.random() * 0.2);
+            }
+
+            // Generate random time domain data (scope mode)
+            const bufferLength = FFT_SIZE;
+            frozenTimeDomainDataLeft = new Uint8Array(bufferLength);
+            frozenTimeDomainDataRight = new Uint8Array(bufferLength);
+
+            // Generate realistic waveform (sine wave with harmonics + noise)
+            const frequency = 2 + Math.random() * 4; // 2-6 cycles
+            const harmonics = 2 + Math.floor(Math.random() * 3); // 2-4 harmonics
+
+            for (let i = 0; i < bufferLength; i++) {
+                const t = i / bufferLength;
+                let valueLeft = 0;
+                let valueRight = 0;
+
+                // Add fundamental and harmonics
+                for (let h = 1; h <= harmonics; h++) {
+                    const amplitude = 1 / h;
+                    valueLeft += Math.sin(2 * Math.PI * frequency * h * t) * amplitude;
+                    valueRight += Math.sin(2 * Math.PI * frequency * h * t + Math.random() * 0.5) * amplitude;
+                }
+
+                // Add noise
+                valueLeft += (Math.random() - 0.5) * 0.1;
+                valueRight += (Math.random() - 0.5) * 0.1;
+
+                // Normalize to 0-255 range (128 = center)
+                frozenTimeDomainDataLeft[i] = Math.floor((valueLeft * 0.3 + 0.5) * 255);
+                frozenTimeDomainDataRight[i] = Math.floor((valueRight * 0.3 + 0.5) * 255);
+            }
         }
     </script>
 </body>
