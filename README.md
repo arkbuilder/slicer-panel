@@ -1,6 +1,6 @@
 # RSX-2 Reference Spectrum Analyzer
 
-<img src="og.png" >
+<img src="og2.png" >
 My second week 1 submission for Data Visualizations and Interaction is
 
 [A professional-grade audio FFT visualizer designed to look and feel like high-end studio hardware. The RSX-2 features a brushed aluminum faceplate, precision rotary controls, and real-time stereo spectrum analysis with LED-style display bars.](https://kylephoto.blob.core.windows.net/spring-into-ai/fft/index.html)
