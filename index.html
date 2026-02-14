@@ -630,6 +630,20 @@
             display: block;
         }
 
+        /* Canvas for radial mode */
+        .radial-canvas {
+            width: 100%;
+            height: 300px;
+            display: none;
+            background: #000000;
+            border: 1px solid #1a1a1a;
+            border-radius: 3px;
+        }
+
+        .radial-canvas.active {
+            display: block;
+        }
+
         .bars-container.hidden {
             display: none;
         }
@@ -668,11 +682,13 @@
                     <h3>Left Channel</h3>
                     <div class="bars-container"></div>
                     <canvas class="scope-canvas" width="550" height="300"></canvas>
+                    <canvas class="radial-canvas" width="550" height="300"></canvas>
                 </div>
                 <div id="right-channel" class="channel">
                     <h3>Right Channel</h3>
                     <div class="bars-container"></div>
                     <canvas class="scope-canvas" width="550" height="300"></canvas>
+                    <canvas class="radial-canvas" width="550" height="300"></canvas>
                 </div>
             </div>
         </div>
@@ -687,7 +703,7 @@
                         <div class="knob-indicator"></div>
                     </div>
                 </div>
-                <div class="knob-value" id="fall-rate-value">5</div>
+                <div class="knob-value" id="fall-rate-value">10</div>
                 <input type="range" id="fall-rate" min="1" max="20" value="10" style="display: none;">
             </div>
 
@@ -770,14 +786,22 @@
 
         // Configuration
         const FFT_SIZE = 2048;
-        let fallRate = 5;
+        const defaultFallRate = 10;
+        let fallRate = defaultFallRate;
         let isSeeking = false;
         let currentGain = 0; // dB
         let displayMode = 'spectrum'; // 'spectrum' or 'scope'
+        let layoutMode = 'linear'; // 'linear' or 'radial'
+        let rotationAngle = 0; // For radial mode rotation
+        const rotationSpeed = 0.002; // Radians per frame
 
         // Canvas contexts for oscilloscope
         let canvasLeftCtx = null;
         let canvasRightCtx = null;
+
+        // Canvas contexts for radial mode
+        let radialLeftCtx = null;
+        let radialRightCtx = null;
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', init);
@@ -793,6 +817,7 @@
             setupGainKnob();
             setupProgressBar();
             setupModeToggle();
+            setupLayoutToggle();
             initCanvases();
         }
 
@@ -1150,6 +1175,187 @@
             ctx.stroke();
         }
 
+        function animateRadial() {
+            animationId = requestAnimationFrame(animateRadial);
+
+            // Increment rotation
+            rotationAngle += rotationSpeed;
+
+            if (displayMode === 'spectrum') {
+                // Get frequency data
+                const leftBands = getLogarithmicBands(analyserLeft);
+                const rightBands = getLogarithmicBands(analyserRight);
+
+                // Store band data for tooltip
+                leftBandData = leftBands.slice();
+                rightBandData = rightBands.slice();
+
+                // Update bar heights with falling effect
+                for (let i = 0; i < NUM_BANDS; i++) {
+                    const targetLeft = (leftBands[i] / 255) * 280;
+                    const targetRight = (rightBands[i] / 255) * 280;
+
+                    if (targetLeft > barHeightsLeft[i]) {
+                        barHeightsLeft[i] = targetLeft;
+                    } else {
+                        barHeightsLeft[i] = Math.max(targetLeft, barHeightsLeft[i] - fallRate);
+                    }
+
+                    if (targetRight > barHeightsRight[i]) {
+                        barHeightsRight[i] = targetRight;
+                    } else {
+                        barHeightsRight[i] = Math.max(targetRight, barHeightsRight[i] - fallRate);
+                    }
+                }
+
+                // Draw radial spectrum
+                drawRadialSpectrum(radialLeftCtx, barHeightsLeft);
+                drawRadialSpectrum(radialRightCtx, barHeightsRight);
+            } else {
+                // Get time domain data for scope
+                const bufferLength = analyserLeft.fftSize;
+                const leftDataArray = new Uint8Array(bufferLength);
+                const rightDataArray = new Uint8Array(bufferLength);
+
+                analyserLeft.getByteTimeDomainData(leftDataArray);
+                analyserRight.getByteTimeDomainData(rightDataArray);
+
+                // Draw radial scope
+                drawRadialScope(radialLeftCtx, leftDataArray);
+                drawRadialScope(radialRightCtx, rightDataArray);
+            }
+        }
+
+        function drawRadialSpectrum(ctx, heights) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const baseRadius = 60;
+            const maxBarHeight = 80;
+
+            // Clear canvas
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw circular grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            for (let r = baseRadius; r <= baseRadius + maxBarHeight; r += 20) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(rotationAngle);
+
+            // Draw bars around semicircle
+            // Bass at bottom (180°), highs at top (0°)
+            // Arrange from 225° (bottom-left) to 315° (bottom-right) via top
+            const startAngle = Math.PI * 1.25; // 225 degrees
+            const endAngle = Math.PI * 1.75 + Math.PI * 2; // 315 degrees (going clockwise through top)
+            const totalAngle = Math.PI * 1.5; // 270 degrees of arc
+            const barAngle = totalAngle / NUM_BANDS;
+            const barWidth = 0.8; // Fraction of angle segment to use
+
+            for (let i = 0; i < NUM_BANDS; i++) {
+                const angle = startAngle + (i + 0.5) * barAngle;
+                const barHeight = (heights[i] / 280) * maxBarHeight;
+
+                // Calculate bar corners
+                const innerRadius = baseRadius;
+                const outerRadius = baseRadius + Math.max(2, barHeight);
+
+                const angleStart = angle - (barAngle * barWidth) / 2;
+                const angleEnd = angle + (barAngle * barWidth) / 2;
+
+                // Create gradient for bar
+                const gradient = ctx.createRadialGradient(0, 0, innerRadius, 0, 0, outerRadius);
+                const intensity = barHeight / maxBarHeight;
+                if (intensity < 0.6) {
+                    gradient.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
+                    gradient.addColorStop(1, 'rgba(220, 220, 220, 0.8)');
+                } else if (intensity < 0.85) {
+                    gradient.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
+                    gradient.addColorStop(0.6, 'rgba(220, 220, 220, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 170, 0, 0.9)');
+                } else {
+                    gradient.addColorStop(0, 'rgba(200, 200, 200, 0.9)');
+                    gradient.addColorStop(0.5, 'rgba(220, 220, 220, 0.8)');
+                    gradient.addColorStop(0.75, 'rgba(255, 170, 0, 0.9)');
+                    gradient.addColorStop(1, 'rgba(255, 100, 0, 1)');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, innerRadius, angleStart, angleEnd);
+                ctx.arc(0, 0, outerRadius, angleEnd, angleStart, true);
+                ctx.closePath();
+                ctx.fill();
+
+                // Add glow effect
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.3)';
+                ctx.shadowBlur = 4;
+            }
+
+            ctx.restore();
+        }
+
+        function drawRadialScope(ctx, dataArray) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const baseRadius = 80;
+            const amplitudeScale = 40;
+
+            // Clear canvas
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw circular grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, baseRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(rotationAngle);
+
+            // Draw waveform around circle
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffaa00';
+            ctx.beginPath();
+
+            const samples = 256; // Use fewer samples for smoother circle
+            const step = Math.floor(dataArray.length / samples);
+
+            for (let i = 0; i < samples; i++) {
+                const angle = (i / samples) * Math.PI * 2;
+                const dataIndex = i * step;
+                const amplitude = (dataArray[dataIndex] - 128) / 128;
+                const radius = baseRadius + amplitude * amplitudeScale;
+
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+
+            ctx.closePath();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
         function updateBars(containerId, newValues, currentHeights) {
             const bars = document.querySelectorAll(`#${containerId} .bars-container .bar`);
             const containerHeight = 280; // Max height in pixels
@@ -1203,11 +1409,7 @@
             audioElement.play();
 
             // Start appropriate animation based on mode
-            if (displayMode === 'spectrum') {
-                animate();
-            } else {
-                animateScope();
-            }
+            startAnimation();
         }
 
         function pause() {
@@ -1270,12 +1472,12 @@
             // Initialize knob position
             updateKnobRotation(parseInt(slider.value));
 
-            // Double-click to reset to default value (5)
+            // Double-click to reset to default value
             knob.addEventListener('dblclick', (e) => {
-                slider.value = 5;
-                fallRate = 5;
+                slider.value = defaultFallRate;
+                fallRate = defaultFallRate;
                 valueDisplay.textContent = fallRate;
-                updateKnobRotation(5);
+                updateKnobRotation(defaultFallRate);
                 e.preventDefault();
             });
 
@@ -1485,42 +1687,91 @@
             });
         }
 
+        function setupLayoutToggle() {
+            const toggle = document.getElementById('layout-toggle');
+            const labelLinear = document.getElementById('label-linear');
+            const labelRadial = document.getElementById('label-radial');
+
+            toggle.addEventListener('click', () => {
+                layoutMode = layoutMode === 'linear' ? 'radial' : 'linear';
+
+                // Update toggle visual
+                toggle.classList.toggle('active');
+
+                // Update labels
+                labelLinear.classList.toggle('active');
+                labelRadial.classList.toggle('active');
+
+                // Switch layout mode
+                switchLayoutMode();
+            });
+        }
+
         function initCanvases() {
             const leftCanvas = document.querySelector('#left-channel .scope-canvas');
             const rightCanvas = document.querySelector('#right-channel .scope-canvas');
 
             canvasLeftCtx = leftCanvas.getContext('2d');
             canvasRightCtx = rightCanvas.getContext('2d');
+
+            // Initialize radial canvases
+            const radialLeftCanvas = document.querySelector('#left-channel .radial-canvas');
+            const radialRightCanvas = document.querySelector('#right-channel .radial-canvas');
+
+            radialLeftCtx = radialLeftCanvas.getContext('2d');
+            radialRightCtx = radialRightCanvas.getContext('2d');
         }
 
         function switchDisplayMode() {
+            updateVisualizerDisplay();
+        }
+
+        function switchLayoutMode() {
+            updateVisualizerDisplay();
+        }
+
+        function updateVisualizerDisplay() {
             const barsContainers = document.querySelectorAll('.bars-container');
             const scopeCanvases = document.querySelectorAll('.scope-canvas');
+            const radialCanvases = document.querySelectorAll('.radial-canvas');
 
-            if (displayMode === 'spectrum') {
-                // Show bars, hide canvases
-                barsContainers.forEach(container => container.classList.remove('hidden'));
-                scopeCanvases.forEach(canvas => canvas.classList.remove('active'));
+            // Hide all first
+            barsContainers.forEach(container => container.classList.add('hidden'));
+            scopeCanvases.forEach(canvas => canvas.classList.remove('active'));
+            radialCanvases.forEach(canvas => canvas.classList.remove('active'));
 
-                // Restart spectrum animation
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                }
-                if (audioElement && !audioElement.paused) {
-                    animate();
+            // Show appropriate element based on mode combination
+            if (layoutMode === 'linear') {
+                if (displayMode === 'spectrum') {
+                    barsContainers.forEach(container => container.classList.remove('hidden'));
+                } else {
+                    scopeCanvases.forEach(canvas => canvas.classList.add('active'));
                 }
             } else {
-                // Hide bars, show canvases
-                barsContainers.forEach(container => container.classList.add('hidden'));
-                scopeCanvases.forEach(canvas => canvas.classList.add('active'));
+                // Radial mode uses canvas for both spectrum and scope
+                radialCanvases.forEach(canvas => canvas.classList.add('active'));
+            }
 
-                // Restart scope animation
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                }
-                if (audioElement && !audioElement.paused) {
+            // Restart appropriate animation
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (audioElement && !audioElement.paused) {
+                startAnimation();
+            }
+        }
+
+        function startAnimation() {
+            if (layoutMode === 'linear') {
+                if (displayMode === 'spectrum') {
+                    animate();
+                } else {
                     animateScope();
                 }
+            } else {
+                // Radial mode
+                animateRadial();
             }
         }
 
