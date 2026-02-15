@@ -57,6 +57,57 @@ export function initInstantSpectrum(canvasId, bus, state) {
   let targetingWeight = 1;
   let rafId = null;
 
+  // Live analyser: reusable buffer and bin→band mapping
+  let liveFreqData = null;
+  let bandBinMap = null;  // [{lowBin, highBin}, ...] for 40 log-spaced bands
+
+  const buildBandBinMap = () => {
+    const analysers = state.getAnalysers();
+    if (!analysers || !analysers.mono) return null;
+    const fftSize = analysers.mono.fftSize;
+    const sampleRate = analysers.mono.context.sampleRate;
+    const numBins = fftSize / 2;
+    const binWidth = sampleRate / fftSize;
+    const minFreq = 20;
+    const nyquist = sampleRate / 2;
+    const maxFreq = Math.min(20000, nyquist);
+    const map = new Array(BAND_COUNT);
+    for (let i = 0; i < BAND_COUNT; i++) {
+      const low = minFreq * Math.pow(maxFreq / minFreq, i / BAND_COUNT);
+      const high = minFreq * Math.pow(maxFreq / minFreq, (i + 1) / BAND_COUNT);
+      const lowBin = clamp(Math.floor(low / binWidth), 0, numBins - 1);
+      const highBin = clamp(Math.floor(high / binWidth), lowBin, numBins - 1);
+      map[i] = { lowBin, highBin };
+    }
+    return map;
+  };
+
+  const updateActualFromAnalyser = () => {
+    const analysers = state.getAnalysers();
+    if (!analysers || !analysers.mono) return false;
+
+    if (!bandBinMap) bandBinMap = buildBandBinMap();
+    if (!bandBinMap) return false;
+
+    const analyser = analysers.mono;
+    const numBins = analyser.frequencyBinCount;
+    if (!liveFreqData || liveFreqData.length !== numBins) {
+      liveFreqData = new Uint8Array(numBins);
+    }
+    analyser.getByteFrequencyData(liveFreqData);
+
+    for (let i = 0; i < BAND_COUNT; i++) {
+      const { lowBin, highBin } = bandBinMap[i];
+      let sum = 0;
+      const count = highBin - lowBin + 1;
+      for (let b = lowBin; b <= highBin; b++) {
+        sum += liveFreqData[b];
+      }
+      actual[i] = count > 0 ? sum / count : 0;
+    }
+    return true;
+  };
+
   const updateMetrics = () => {
     const nextDpr = window.devicePixelRatio || 1;
     const cssWidth = Math.max(1, Math.floor(canvas.clientWidth));
@@ -75,6 +126,11 @@ export function initInstantSpectrum(canvasId, bus, state) {
   };
 
   const updateActualFromFrame = () => {
+    // Prefer live analyser data when playing (reflects EQ changes)
+    if (state.isPlaying() && updateActualFromAnalyser()) {
+      return;
+    }
+
     const precomputed = state.getPrecomputed();
     if (!precomputed?.bandsLeft || !precomputed?.numFrames) {
       actual.fill(0);
@@ -251,6 +307,7 @@ export function initInstantSpectrum(canvasId, bus, state) {
       peaks.fill(0);
       peakHoldFrames.fill(0);
       currentFrame = 0;
+      bandBinMap = null;  // rebuild on next use (sample rate may differ)
       updateActualFromFrame();
       draw();
     }),

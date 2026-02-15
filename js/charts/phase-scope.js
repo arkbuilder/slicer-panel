@@ -32,6 +32,10 @@ export function initPhaseScope(canvasId, bus, state) {
   let isPlaying = false;
   let needsPaint = true;
 
+  // Reusable buffers for live analyser data
+  let liveBufferL = null;
+  let liveBufferR = null;
+
   /* ── helpers ─────────────────────────────────────────────── */
 
   function dims() {
@@ -155,6 +159,43 @@ export function initPhaseScope(canvasId, bus, state) {
     ctx.globalAlpha = 1;
   }
 
+  function drawScopeFromBuffers(leftBuf, rightBuf, count) {
+    const { w, h } = dims();
+    const cx = w / 2;
+    const cy = h / 2;
+    const scale = Math.min(cx, cy) * 0.88;
+
+    ctx.fillStyle = `rgba(6, 10, 15, ${TRAIL_DECAY})`;
+    ctx.fillRect(0, 0, w, h);
+    drawReticle();
+
+    ctx.save();
+    ctx.shadowColor = GLOW_COLOR;
+    ctx.shadowBlur = 4;
+
+    for (let i = 0; i < count; i++) {
+      const l = leftBuf[i];
+      const r = rightBuf[i];
+      const x = cx + r * scale;
+      const y = cy - l * scale;
+      const amp = Math.sqrt(l * l + r * r);
+      const intensity = clamp(amp * 2.5, 0, 1);
+
+      if (intensity > 0.7) {
+        ctx.fillStyle = DOT_COLOR_HOT;
+        ctx.globalAlpha = DOT_ALPHA_BASE + intensity * 0.35;
+        ctx.fillRect(x - 0.5, y - 0.5, 2, 2);
+      } else {
+        ctx.fillStyle = DOT_COLOR_CORE;
+        ctx.globalAlpha = DOT_ALPHA_BASE * (0.3 + intensity * 0.7);
+        ctx.fillRect(x, y, 1.5, 1.5);
+      }
+    }
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   /* ── render loop ────────────────────────────────────────── */
 
   function renderFrame() {
@@ -169,22 +210,35 @@ export function initPhaseScope(canvasId, bus, state) {
       return;
     }
 
-    const currentFrame = state.getCurrentFrame();
-    const hopSize = 512;
-    const centerSample = currentFrame * hopSize;
+    // Prefer live analyser data (shows EQ-processed signal) when playing
+    const analysers = state.getAnalysers();
+    if (isPlaying && analysers && analysers.left && analysers.right) {
+      const len = analysers.left.fftSize;
+      if (!liveBufferL || liveBufferL.length !== len) {
+        liveBufferL = new Float32Array(len);
+        liveBufferR = new Float32Array(len);
+      }
+      analysers.left.getFloatTimeDomainData(liveBufferL);
+      analysers.right.getFloatTimeDomainData(liveBufferR);
+      drawScopeFromBuffers(liveBufferL, liveBufferR, len);
+    } else {
+      // Fallback to precomputed/decoded data when paused
+      const currentFrame = state.getCurrentFrame();
+      const hopSize = 512;
+      const centerSample = currentFrame * hopSize;
+      const startIdx = Math.max(0, centerSample - Math.floor(SAMPLE_WINDOW / 2));
+      const count = Math.min(SAMPLE_WINDOW, decoded.left.length - startIdx);
 
-    const startIdx = Math.max(0, centerSample - Math.floor(SAMPLE_WINDOW / 2));
-    const count = Math.min(SAMPLE_WINDOW, decoded.left.length - startIdx);
+      if (count <= 0) {
+        drawBackground();
+        drawReticle();
+        drawIdleNoise();
+        scheduleFrame();
+        return;
+      }
 
-    if (count <= 0) {
-      drawBackground();
-      drawReticle();
-      drawIdleNoise();
-      scheduleFrame();
-      return;
+      drawScope(decoded.left, decoded.right, startIdx, count);
     }
-
-    drawScope(decoded.left, decoded.right, startIdx, count);
 
     if (statusEl) {
       statusEl.textContent = isPlaying ? 'TRACKING' : 'PAUSED';

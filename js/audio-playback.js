@@ -11,6 +11,9 @@ let wallClockStartMs = 0;
 let rafId = null;
 let loopRegion = null;
 let eqFilters = []; // BiquadFilterNode chain for 5-band EQ
+let analyserMono = null;   // AnalyserNode — mixed signal (post-EQ)
+let analyserL = null;      // AnalyserNode — left channel (post-EQ)
+let analyserR = null;      // AnalyserNode — right channel (post-EQ)
 let loopEnabled = false;
 let loopRestartPending = false;
 
@@ -60,6 +63,32 @@ function ensureGainNode(state) {
     }
     eqFilters[eqFilters.length - 1].connect(gainNode);
     gainNode.connect(audioCtx.destination);
+
+    // Attach observer analyser taps off the last EQ filter (post-EQ, pre-gain)
+    const eqOut = eqFilters[eqFilters.length - 1];
+
+    // Mono analyser for frequency-domain data (spectrum, ring)
+    analyserMono = audioCtx.createAnalyser();
+    analyserMono.fftSize = 2048;
+    analyserMono.smoothingTimeConstant = 0.7;
+    eqOut.connect(analyserMono);
+
+    // Stereo split for L/R time-domain data (oscilloscope, phase scope)
+    const splitter = audioCtx.createChannelSplitter(2);
+    eqOut.connect(splitter);
+
+    analyserL = audioCtx.createAnalyser();
+    analyserL.fftSize = 4096;
+    analyserL.smoothingTimeConstant = 0;
+    splitter.connect(analyserL, 0);
+
+    analyserR = audioCtx.createAnalyser();
+    analyserR.fftSize = 4096;
+    analyserR.smoothingTimeConstant = 0;
+    splitter.connect(analyserR, 1);
+
+    // Expose on state so chart modules can read them
+    state.setAnalysers({ mono: analyserMono, left: analyserL, right: analyserR });
   }
 
   gainNode.gain.value = state.isMuted() ? 0 : 1;

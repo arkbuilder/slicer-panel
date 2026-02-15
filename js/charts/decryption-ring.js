@@ -44,6 +44,80 @@ export function initDecryptionRing(canvasId, bus, state) {
   let hoverBand = null;
   let targetingWeight = 1;
 
+  // Live analyser: reusable buffers and bin→band mapping
+  let liveFreqData = null;
+  let liveBands = new Float32Array(40);
+  let bandBinMap = null;
+
+  const buildBandBinMap = () => {
+    const analysers = state.getAnalysers();
+    if (!analysers || !analysers.mono) return null;
+    const fftSize = analysers.mono.fftSize;
+    const sampleRate = analysers.mono.context.sampleRate;
+    const numBins = fftSize / 2;
+    const binWidth = sampleRate / fftSize;
+    const minFreq = 20;
+    const nyquist = sampleRate / 2;
+    const maxFreq = Math.min(20000, nyquist);
+    const map = new Array(40);
+    for (let i = 0; i < 40; i++) {
+      const low = minFreq * Math.pow(maxFreq / minFreq, i / 40);
+      const high = minFreq * Math.pow(maxFreq / minFreq, (i + 1) / 40);
+      const lowBin = clamp(Math.floor(low / binWidth), 0, numBins - 1);
+      const highBin = clamp(Math.floor(high / binWidth), lowBin, numBins - 1);
+      map[i] = { lowBin, highBin };
+    }
+    return map;
+  };
+
+  const updateLiveBands = () => {
+    const analysers = state.getAnalysers();
+    if (!analysers || !analysers.mono) return false;
+    if (!bandBinMap) bandBinMap = buildBandBinMap();
+    if (!bandBinMap) return false;
+
+    const analyser = analysers.mono;
+    const numBins = analyser.frequencyBinCount;
+    if (!liveFreqData || liveFreqData.length !== numBins) {
+      liveFreqData = new Uint8Array(numBins);
+    }
+    analyser.getByteFrequencyData(liveFreqData);
+
+    for (let i = 0; i < 40; i++) {
+      const { lowBin, highBin } = bandBinMap[i];
+      let sum = 0;
+      const count = highBin - lowBin + 1;
+      for (let b = lowBin; b <= highBin; b++) sum += liveFreqData[b];
+      liveBands[i] = count > 0 ? sum / count : 0;
+    }
+    return true;
+  };
+
+  const drawRingLive = (bandValues, alphaScale, rotation, innerRadius, outerRadius, cx, cy) => {
+    const rgb = parseRgbFromCssVar('--sl-cyan', '#00d4ff');
+    const arcCount = 40;
+    const arcStep = (Math.PI * 2) / arcCount;
+    const radialScale = clamp(0.7 + 0.6 * (targetingWeight / 2), 0.5, 1.6);
+
+    for (let band = 0; band < arcCount; band++) {
+      const value = bandValues[band] || 0;
+      const normalized = value / 255;
+      const radius = innerRadius + normalized * (outerRadius - innerRadius) * radialScale;
+      const alpha = clamp((0.1 + normalized * 0.9) * alphaScale, 0, 1);
+      if (alpha <= 0.005) continue;
+
+      const start = band * arcStep + rotation;
+      const end = start + arcStep * 0.9;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, start, end, false);
+      ctx.arc(cx, cy, innerRadius, end, start, true);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha.toFixed(4)})`;
+      ctx.fill();
+    }
+  };
+
   const updateMetrics = () => {
     const nextDpr = window.devicePixelRatio || 1;
     const cssWidth = Math.max(1, Math.floor(canvas.clientWidth));
@@ -136,14 +210,20 @@ export function initDecryptionRing(canvasId, bus, state) {
     const innerRadius = outerRadius * 0.4;
     const rotation = currentFrame * 0.01;
 
-    if (!isMobileTrailMode()) {
-      const trailAlphas = [0.1, 0.16, 0.24, 0.32, 0.4];
-      for (let i = trailAlphas.length - 1; i >= 0; i -= 1) {
-        drawRingFrame(currentFrame - (i + 1), trailAlphas[i], rotation, innerRadius, outerRadius, cx, cy, precomputed);
-      }
-    }
+    const useLive = state.isPlaying() && updateLiveBands();
 
-    drawRingFrame(currentFrame, 1, rotation, innerRadius, outerRadius, cx, cy, precomputed);
+    if (useLive) {
+      // Live analyser data: draw current ring from live bands (no trail)
+      drawRingLive(liveBands, 1, rotation, innerRadius, outerRadius, cx, cy);
+    } else {
+      if (!isMobileTrailMode()) {
+        const trailAlphas = [0.1, 0.16, 0.24, 0.32, 0.4];
+        for (let i = trailAlphas.length - 1; i >= 0; i -= 1) {
+          drawRingFrame(currentFrame - (i + 1), trailAlphas[i], rotation, innerRadius, outerRadius, cx, cy, precomputed);
+        }
+      }
+      drawRingFrame(currentFrame, 1, rotation, innerRadius, outerRadius, cx, cy, precomputed);
+    }
 
     if (Number.isFinite(hoverBand)) {
       const arcStep = (Math.PI * 2) / 40;
@@ -157,7 +237,16 @@ export function initDecryptionRing(canvasId, bus, state) {
       ctx.stroke();
     }
 
-    const rms = precomputed.rmsLeft?.[currentFrame] || 0;
+    // RMS for center pulse: compute from live bands or precomputed
+    let rms;
+    if (useLive) {
+      // Approximate RMS from live band averages (0-255 scale → 0-1)
+      let sumSq = 0;
+      for (let i = 0; i < 40; i++) sumSq += (liveBands[i] / 255) ** 2;
+      rms = Math.sqrt(sumSq / 40);
+    } else {
+      rms = precomputed.rmsLeft?.[currentFrame] || 0;
+    }
     const pulseBase = 6 * dpr;
     const pulseRadius = pulseBase + clamp(rms * 26 * dpr, 0, 28 * dpr);
 
@@ -241,6 +330,7 @@ export function initDecryptionRing(canvasId, bus, state) {
   const off = [
     bus.on(BUS_EVENTS.DATA_READY, () => {
       currentFrame = 0;
+      bandBinMap = null;
       render();
       updateStatus();
     }),

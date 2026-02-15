@@ -61,6 +61,7 @@
             <span>LOOP</span>
           </label>
           <button id="btn-mute" class="transport-btn" type="button" disabled>MUTE</button>
+          <a href="Live.html" class="transport-btn" style="text-decoration:none;text-align:center;">LIVE</a>
         </div>
         <div class="time-display">
           <span id="time-current">0:00.0</span>
@@ -124,6 +125,15 @@
             <span class="panel-title">BAND HEATMAP</span>
           </div>
           <canvas id="heatmap-canvas" class="chart-canvas"></canvas>
+        </section>
+
+        <section class="panel panel--beat-tap">
+          <div class="panel-head">
+            <span class="panel-title">SIGNAL SYNC</span>
+            <span id="beat-tap-score" class="panel-status beat-tap-score">0</span>
+            <span id="beat-tap-status" class="panel-status">STANDBY</span>
+          </div>
+          <canvas id="beat-tap-canvas" class="chart-canvas"></canvas>
         </section>
 
         <div class="club-viz-row">

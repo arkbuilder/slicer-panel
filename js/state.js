@@ -267,5 +267,14 @@ export function createState() {
         eqBands[index] = { ...eqBands[index], gain: clamp(gain, -12, 12) };
       }
     },
+
+    /* ── Live analyser nodes (set by audio-playback) ────── */
+    _analysers: null,
+    getAnalysers() {
+      return this._analysers;
+    },
+    setAnalysers(obj) {
+      this._analysers = obj || null;
+    },
   };
 }

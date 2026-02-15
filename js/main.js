@@ -11,6 +11,7 @@ import { initInstantSpectrum } from './charts/instant-spectrum.js';
 import { initFaultLog } from './charts/fault-log.js';
 import { initPhaseScope } from './charts/phase-scope.js';
 import { initOscilloscope } from './charts/oscilloscope.js';
+import { initBeatTap } from './charts/beat-tap.js';
 import { initInteractions } from './interactions.js';
 import { initTheme } from './theme.js';
 import { initEqDials } from './eq-dials.js';
@@ -222,6 +223,7 @@ function boot() {
     initFaultLog('fault-list', bus, state),
     initPhaseScope('phase-scope-canvas', bus, state),
     initOscilloscope('oscilloscope-canvas', bus, state),
+    initBeatTap('beat-tap-canvas', bus, state),
     initInteractions(bus, state),
     initEqDials(bus, state),
   ];

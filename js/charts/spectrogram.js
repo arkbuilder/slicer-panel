@@ -85,6 +85,41 @@ export function initSpectrogram(canvasId, bus, state) {
   let hoverFrame = null;
   let hoverBand = null;
   let sensorsWeight = 1;
+  let eqGainCurve = null; // Float32Array(40) linear gain per band
+
+  const computeEqGainCurve = () => {
+    const precomputed = getPrecomputed();
+    if (!precomputed?.bandFrequencies?.length) return null;
+    const eqBands = state.getEqBands();
+    const allFlat = eqBands.every((b) => Math.abs(b.gain) < 0.01);
+    if (allFlat) return null; // no adjustment needed
+
+    const numBands = precomputed.bandFrequencies.length;
+    const freqs = new Float32Array(numBands);
+    for (let i = 0; i < numBands; i++) {
+      freqs[i] = Math.sqrt(
+        Math.max(1, precomputed.bandFrequencies[i].low) *
+        Math.max(1, precomputed.bandFrequencies[i].high)
+      );
+    }
+
+    const sr = precomputed.sampleRate || 44100;
+    const offline = new OfflineAudioContext(1, 1, sr);
+    const combined = new Float32Array(numBands).fill(1);
+    const magBuf = new Float32Array(numBands);
+    const phaseBuf = new Float32Array(numBands);
+
+    for (const band of eqBands) {
+      const f = offline.createBiquadFilter();
+      f.type = band.type;
+      f.frequency.value = band.freq;
+      f.gain.value = band.gain;
+      if (band.type === 'peaking') f.Q.value = band.Q || 1;
+      f.getFrequencyResponse(freqs, magBuf, phaseBuf);
+      for (let i = 0; i < numBands; i++) combined[i] *= magBuf[i];
+    }
+    return combined;
+  };
 
   const updateMetrics = () => {
     const nextDpr = window.devicePixelRatio || 1;
@@ -146,10 +181,12 @@ export function initSpectrogram(canvasId, bus, state) {
 
     const image = offCtx.createImageData(numFrames, numBands);
     const bands = precomputed.bandsLeft;
+    const gains = eqGainCurve; // may be null if EQ is flat
 
     for (let frame = 0; frame < numFrames; frame += 1) {
       for (let band = 0; band < numBands; band += 1) {
-        const value = bands[frame * numBands + band] || 0;
+        let value = bands[frame * numBands + band] || 0;
+        if (gains) value = clamp(Math.round(value * gains[band]), 0, 255);
         const y = numBands - 1 - band;
         const pixelIndex = (y * numFrames + frame) * 4;
         const lutIndex = value * 3;
@@ -292,6 +329,7 @@ export function initSpectrogram(canvasId, bus, state) {
 
   const off = [
     bus.on(BUS_EVENTS.DATA_READY, () => {
+      eqGainCurve = computeEqGainCurve();
       buildOffscreen();
       render();
     }),
@@ -317,6 +355,11 @@ export function initSpectrogram(canvasId, bus, state) {
       render();
     }),
     bus.on(BUS_EVENTS.RESIZE, () => {
+      render();
+    }),
+    bus.on(BUS_EVENTS.EQ_CHANGE, () => {
+      eqGainCurve = computeEqGainCurve();
+      buildOffscreen();
       render();
     }),
   ];

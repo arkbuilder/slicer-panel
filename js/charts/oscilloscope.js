@@ -35,6 +35,10 @@ export function initOscilloscope(canvasId, bus, state) {
   let rafId = null;
   let isPlaying = false;
 
+  // Reusable buffers for live analyser data
+  let liveBufferL = null;
+  let liveBufferR = null;
+
   function dims() {
     return { w: canvas.width, h: canvas.height };
   }
@@ -84,7 +88,40 @@ export function initOscilloscope(canvasId, bus, state) {
     ctx.fillText('-1', 4, Math.round(h * 0.96));
   }
 
-  /* ── waveform drawing ───────────────────────────────────── */
+  /* ── waveform drawing (accepts Float32Array directly) ───── */
+
+  function drawWaveBuffer(buffer, count, color, glowColor, yOffset) {
+    const { w, h } = dims();
+    if (count <= 1) return;
+
+    const halfH = h * 0.45;
+    const centerY = h / 2 + yOffset;
+
+    ctx.save();
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = GLOW_BLUR;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = LINE_WIDTH;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    for (let i = 0; i < count; i++) {
+      const x = (i / (count - 1)) * w;
+      const y = centerY - clamp(buffer[i], -1, 1) * halfH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = LINE_WIDTH * 0.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ── waveform drawing (indexed from large decoded array) ── */
 
   function drawWave(samples, startIdx, count, color, glowColor, yOffset) {
     const { w, h } = dims();
@@ -150,21 +187,39 @@ export function initOscilloscope(canvasId, bus, state) {
 
     drawGrid();
 
-    const currentFrame = state.getCurrentFrame();
-    const hopSize = 512;
-    const centerSample = currentFrame * hopSize;
-    const startIdx = Math.max(0, centerSample - Math.floor(SAMPLE_WINDOW / 2));
-    const count = Math.min(SAMPLE_WINDOW, decoded.left.length - startIdx);
-
-    if (count > 1) {
-      const isStereo = decoded.right && decoded.right.length > 0;
-
-      if (isStereo) {
-        // stereo: two overlapping waves, slight vertical offset
-        drawWave(decoded.left, startIdx, count, WAVE_COLOR_L, GLOW_COLOR_L, -h * 0.02);
-        drawWave(decoded.right, startIdx, count, WAVE_COLOR_R, GLOW_COLOR_R, h * 0.02);
+    // Prefer live analyser data (shows EQ-processed signal) when playing
+    const analysers = state.getAnalysers();
+    if (isPlaying && analysers && analysers.left) {
+      const len = analysers.left.fftSize;
+      if (!liveBufferL || liveBufferL.length !== len) {
+        liveBufferL = new Float32Array(len);
+        liveBufferR = new Float32Array(len);
+      }
+      analysers.left.getFloatTimeDomainData(liveBufferL);
+      const hasStereo = analysers.right != null;
+      if (hasStereo) {
+        analysers.right.getFloatTimeDomainData(liveBufferR);
+        drawWaveBuffer(liveBufferL, len, WAVE_COLOR_L, GLOW_COLOR_L, -h * 0.02);
+        drawWaveBuffer(liveBufferR, len, WAVE_COLOR_R, GLOW_COLOR_R, h * 0.02);
       } else {
-        drawWave(decoded.left, startIdx, count, WAVE_COLOR_L, GLOW_COLOR_L, 0);
+        drawWaveBuffer(liveBufferL, len, WAVE_COLOR_L, GLOW_COLOR_L, 0);
+      }
+    } else {
+      // Fallback to precomputed/decoded data
+      const currentFrame = state.getCurrentFrame();
+      const hopSize = 512;
+      const centerSample = currentFrame * hopSize;
+      const startIdx = Math.max(0, centerSample - Math.floor(SAMPLE_WINDOW / 2));
+      const count = Math.min(SAMPLE_WINDOW, decoded.left.length - startIdx);
+
+      if (count > 1) {
+        const isStereo = decoded.right && decoded.right.length > 0;
+        if (isStereo) {
+          drawWave(decoded.left, startIdx, count, WAVE_COLOR_L, GLOW_COLOR_L, -h * 0.02);
+          drawWave(decoded.right, startIdx, count, WAVE_COLOR_R, GLOW_COLOR_R, h * 0.02);
+        } else {
+          drawWave(decoded.left, startIdx, count, WAVE_COLOR_L, GLOW_COLOR_L, 0);
+        }
       }
     }
 

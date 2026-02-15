@@ -510,6 +510,29 @@ body::before {
   cursor: pointer;
 }
 
+/* ── Beat Tap / Signal Sync ──────────────────────────────────── */
+
+.panel--beat-tap {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel--beat-tap .chart-canvas {
+  height: 100px;
+}
+
+.panel--beat-tap .panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.beat-tap-score {
+  color: var(--sl-amber);
+  font-weight: bold;
+  margin-left: auto;
+}
+
 /* ── Club Visualisation Row ──────────────────────────────────── */
 
 .club-viz-row {

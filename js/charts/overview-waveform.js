@@ -77,6 +77,45 @@ export function initOverviewWaveform(canvasId, bus, state) {
   let currentFrame = 0;
   let hoverFrame = null;
   let powerWeight = 1;
+  let eqAmpGain = 1; // RMS-average linear gain from EQ curve
+
+  const computeEqAmpGain = () => {
+    const precomputed = state.getPrecomputed();
+    if (!precomputed?.bandFrequencies?.length) return 1;
+    const eqBands = state.getEqBands();
+    const allFlat = eqBands.every((b) => Math.abs(b.gain) < 0.01);
+    if (allFlat) return 1;
+
+    const numBands = precomputed.bandFrequencies.length;
+    const freqs = new Float32Array(numBands);
+    for (let i = 0; i < numBands; i++) {
+      freqs[i] = Math.sqrt(
+        Math.max(1, precomputed.bandFrequencies[i].low) *
+        Math.max(1, precomputed.bandFrequencies[i].high)
+      );
+    }
+
+    const sr = precomputed.sampleRate || 44100;
+    const offline = new OfflineAudioContext(1, 1, sr);
+    const combined = new Float32Array(numBands).fill(1);
+    const magBuf = new Float32Array(numBands);
+    const phaseBuf = new Float32Array(numBands);
+
+    for (const band of eqBands) {
+      const f = offline.createBiquadFilter();
+      f.type = band.type;
+      f.frequency.value = band.freq;
+      f.gain.value = band.gain;
+      if (band.type === 'peaking') f.Q.value = band.Q || 1;
+      f.getFrequencyResponse(freqs, magBuf, phaseBuf);
+      for (let i = 0; i < numBands; i++) combined[i] *= magBuf[i];
+    }
+
+    // RMS of linear gains — broadband average amplitude factor
+    let sumSq = 0;
+    for (let i = 0; i < numBands; i++) sumSq += combined[i] * combined[i];
+    return Math.sqrt(sumSq / numBands);
+  };
 
   let dragStartX = 0;
   let dragMode = null;
@@ -169,8 +208,8 @@ export function initOverviewWaveform(canvasId, bus, state) {
 
     for (let x = 0; x < width; x += 1) {
       const chunkIndex = clamp(Math.floor((x / width) * chunkCount), 0, chunkCount - 1);
-      const min = lod[chunkIndex * 2] || 0;
-      const max = lod[chunkIndex * 2 + 1] || 0;
+      const min = (lod[chunkIndex * 2] || 0) * eqAmpGain;
+      const max = (lod[chunkIndex * 2 + 1] || 0) * eqAmpGain;
       const yMin = clamp((1 - max) * 0.5 * height, 0, height - 1);
       const yMax = clamp((1 - min) * 0.5 * height, 0, height - 1);
       const barHeight = Math.max(1, yMax - yMin);
@@ -377,6 +416,11 @@ export function initOverviewWaveform(canvasId, bus, state) {
     bus.on(BUS_EVENTS.POWER_CHANGE, (payload) => {
       const next = Number(payload?.weights?.sensors);
       powerWeight = Number.isFinite(next) ? next : 1;
+      backgroundDirty = true;
+      render(true);
+    }),
+    bus.on(BUS_EVENTS.EQ_CHANGE, () => {
+      eqAmpGain = computeEqAmpGain();
       backgroundDirty = true;
       render(true);
     }),

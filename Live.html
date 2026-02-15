@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Astromech Slicer — LIVE</title>
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <link rel="stylesheet" href="css/slicer.css">
+  <style>
+    /* ── Full-screen live mode overrides ─────────────────── */
+    html, body {
+      margin: 0; padding: 0;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+      background: #020508;
+      cursor: none;
+    }
+    body.show-cursor { cursor: default; }
+
+    /* stacking container — each canvas fills viewport */
+    #live-stage {
+      position: fixed; inset: 0;
+      background: #020508;
+    }
+    .live-layer {
+      position: absolute; inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      will-change: transform, opacity, filter, clip-path;
+      z-index: 1;
+    }
+    .live-layer.active {
+      opacity: 1;
+      z-index: 2;
+    }
+    .live-layer canvas {
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    /* ── Transition effect keyframes ─────────────────────── */
+
+    /* 1 — Glitch slice */
+    @keyframes glitch-in {
+      0%   { clip-path: inset(0 0 100% 0); opacity: 0; }
+      10%  { clip-path: inset(40% 0 30% 0); opacity: 1; }
+      20%  { clip-path: inset(0 0 60% 0); }
+      35%  { clip-path: inset(70% 0 0 0); }
+      50%  { clip-path: inset(20% 0 40% 0); }
+      65%  { clip-path: inset(0 0 15% 0); }
+      80%  { clip-path: inset(5% 0 5% 0); }
+      100% { clip-path: inset(0 0 0 0); opacity: 1; }
+    }
+    @keyframes glitch-out {
+      0%   { clip-path: inset(0 0 0 0); opacity: 1; }
+      15%  { clip-path: inset(0 0 50% 0); }
+      30%  { clip-path: inset(60% 0 0 0); opacity: 0.7; }
+      50%  { clip-path: inset(30% 0 30% 0); }
+      70%  { clip-path: inset(0 0 80% 0); opacity: 0.3; }
+      100% { clip-path: inset(0 0 100% 0); opacity: 0; }
+    }
+    .fx-glitch-enter { animation: glitch-in 0.7s steps(3) forwards; }
+    .fx-glitch-exit  { animation: glitch-out 0.7s steps(3) forwards; }
+
+    /* 2 — Zoom rotate */
+    @keyframes zoom-rot-in {
+      0%   { transform: scale(0.3) rotate(-15deg); opacity: 0; filter: blur(10px); }
+      60%  { transform: scale(1.05) rotate(2deg); opacity: 1; filter: blur(0); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+    }
+    @keyframes zoom-rot-out {
+      0%   { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+      100% { transform: scale(1.8) rotate(12deg); opacity: 0; filter: blur(8px); }
+    }
+    .fx-zoom-rotate-enter { animation: zoom-rot-in 0.8s cubic-bezier(.22,1,.36,1) forwards; }
+    .fx-zoom-rotate-exit  { animation: zoom-rot-out 0.6s ease-in forwards; }
+
+    /* 3 — Slide wipe (right to left) */
+    @keyframes slide-in {
+      0%   { transform: translateX(100%); opacity: 0.5; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slide-out {
+      0%   { transform: translateX(0); opacity: 1; }
+      100% { transform: translateX(-100%); opacity: 0.5; }
+    }
+    .fx-slide-enter { animation: slide-in 0.7s cubic-bezier(.22,1,.36,1) forwards; }
+    .fx-slide-exit  { animation: slide-out 0.7s ease-in forwards; }
+
+    /* 4 — Iris / circle wipe */
+    @keyframes iris-in {
+      0%   { clip-path: circle(0% at 50% 50%); opacity: 0.8; }
+      100% { clip-path: circle(75% at 50% 50%); opacity: 1; }
+    }
+    @keyframes iris-out {
+      0%   { clip-path: circle(75% at 50% 50%); opacity: 1; }
+      100% { clip-path: circle(0% at 50% 50%); opacity: 0; }
+    }
+    .fx-iris-enter { animation: iris-in 0.9s cubic-bezier(.22,1,.36,1) forwards; }
+    .fx-iris-exit  { animation: iris-out 0.7s ease-in forwards; }
+
+    /* 5 — Scan lines (vertical reveal) */
+    @keyframes scan-in {
+      0%   { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); opacity: 0; }
+      20%  { opacity: 1; }
+      100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+    }
+    @keyframes scan-out {
+      0%   { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+      80%  { opacity: 0.6; }
+      100% { clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%); opacity: 0; }
+    }
+    .fx-scan-enter { animation: scan-in 0.8s cubic-bezier(.22,1,.36,1) forwards; }
+    .fx-scan-exit  { animation: scan-out 0.6s ease-in forwards; }
+
+    /* 6 — Blur flash */
+    @keyframes blur-flash-in {
+      0%   { opacity: 0; filter: blur(20px) brightness(2.5); transform: scale(1.1); }
+      40%  { opacity: 1; filter: blur(4px) brightness(1.8); }
+      100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+    }
+    @keyframes blur-flash-out {
+      0%   { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+      60%  { filter: blur(6px) brightness(2); }
+      100% { opacity: 0; filter: blur(20px) brightness(0.3); transform: scale(0.95); }
+    }
+    .fx-blur-flash-enter { animation: blur-flash-in 0.8s ease-out forwards; }
+    .fx-blur-flash-exit  { animation: blur-flash-out 0.5s ease-in forwards; }
+
+    /* 7 — Diamond wipe */
+    @keyframes diamond-in {
+      0%   { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); opacity: 0.7; }
+      100% { clip-path: polygon(50% -50%, 150% 50%, 50% 150%, -50% 50%); opacity: 1; }
+    }
+    @keyframes diamond-out {
+      0%   { clip-path: polygon(50% -50%, 150% 50%, 50% 150%, -50% 50%); opacity: 1; }
+      100% { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); opacity: 0; }
+    }
+    .fx-diamond-enter { animation: diamond-in 0.85s cubic-bezier(.22,1,.36,1) forwards; }
+    .fx-diamond-exit  { animation: diamond-out 0.6s ease-in forwards; }
+
+    /* 8 — Pixel scale (zoom from corner) */
+    @keyframes pixel-in {
+      0%   { transform: scale(0) translate(40%, 40%); opacity: 0; filter: brightness(2); }
+      50%  { filter: brightness(1.5); }
+      100% { transform: scale(1) translate(0, 0); opacity: 1; filter: brightness(1); }
+    }
+    @keyframes pixel-out {
+      0%   { transform: scale(1) translate(0, 0); opacity: 1; }
+      100% { transform: scale(0) translate(-40%, -40%); opacity: 0; }
+    }
+    .fx-pixel-enter { animation: pixel-in 0.75s cubic-bezier(.22,1,.36,1) forwards; }
+    .fx-pixel-exit  { animation: pixel-out 0.5s ease-in forwards; }
+
+    /* ── Upload overlay ─────────────────────────────────── */
+    #live-upload-overlay {
+      position: fixed; inset: 0;
+      z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(2, 5, 8, 0.92);
+      backdrop-filter: blur(6px);
+      transition: opacity 0.4s;
+    }
+    #live-upload-overlay.hidden {
+      opacity: 0; pointer-events: none;
+    }
+    .live-upload-card {
+      text-align: center;
+      padding: 48px 56px;
+      border: 1px solid var(--sl-panel-edge);
+      border-radius: 12px;
+      background: var(--sl-bg-1);
+    }
+    .live-upload-card h1 {
+      font-family: var(--sl-font-main);
+      color: var(--sl-cyan);
+      font-size: 28px;
+      margin: 0 0 8px;
+      letter-spacing: 3px;
+    }
+    .live-upload-card p {
+      font-family: var(--sl-font-main);
+      color: var(--sl-text-dim);
+      font-size: 13px;
+      margin: 0 0 28px;
+    }
+    .live-upload-card button {
+      font-family: var(--sl-font-main);
+      font-size: 14px;
+      color: var(--sl-bg-0);
+      background: var(--sl-cyan);
+      border: none;
+      padding: 10px 32px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 2px;
+    }
+    .live-upload-card button:hover {
+      background: #33e0ff;
+    }
+
+    /* ── Progress overlay ────────────────────────────────── */
+    #live-progress-overlay {
+      position: fixed; inset: 0;
+      z-index: 99;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(2, 5, 8, 0.94);
+    }
+    #live-progress-overlay.hidden { display: none; }
+    .live-progress-card {
+      text-align: center;
+      padding: 36px 48px;
+      border: 1px solid var(--sl-panel-edge);
+      border-radius: 12px;
+      background: var(--sl-bg-1);
+      min-width: 320px;
+    }
+    .live-progress-card .label {
+      font-family: var(--sl-font-main);
+      color: var(--sl-amber);
+      font-size: 16px;
+      letter-spacing: 3px;
+      margin-bottom: 18px;
+    }
+    .live-progress-track {
+      height: 6px;
+      background: var(--sl-bg-2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .live-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--sl-cyan);
+      transition: width 0.15s;
+    }
+    .live-progress-stage {
+      font-family: var(--sl-font-main);
+      font-size: 11px;
+      color: var(--sl-text-dim);
+    }
+
+    /* ── HUD ─────────────────────────────────────────────── */
+    #live-hud {
+      position: fixed;
+      top: 16px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      display: flex; align-items: center; gap: 24px;
+      font-family: var(--sl-font-main);
+      font-size: 13px;
+      color: var(--sl-text-dim);
+      opacity: 0;
+      transition: opacity 0.6s;
+      pointer-events: none;
+      text-shadow: 0 0 12px rgba(0,0,0,0.9);
+    }
+    #live-hud.visible { opacity: 1; }
+    .hud-title {
+      color: var(--sl-cyan);
+      font-size: 15px;
+      letter-spacing: 2px;
+    }
+    .hud-beat {
+      color: var(--sl-amber);
+      font-size: 14px;
+    }
+    .hud-time {
+      color: var(--sl-text-dim);
+      font-size: 12px;
+    }
+
+    /* ── Bottom bar ──────────────────────────────────────── */
+    #live-controls {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 50;
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      padding: 12px 24px;
+      background: linear-gradient(transparent, rgba(2,5,8,0.85));
+      font-family: var(--sl-font-main);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+    }
+    #live-controls.visible { opacity: 1; pointer-events: auto; }
+    #live-controls button {
+      font-family: var(--sl-font-main);
+      font-size: 12px;
+      color: var(--sl-text);
+      background: var(--sl-bg-2);
+      border: 1px solid var(--sl-panel-edge);
+      padding: 6px 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    #live-controls button:hover { background: var(--sl-panel-alt); }
+    .live-time {
+      color: var(--sl-text-dim);
+      min-width: 90px;
+      text-align: center;
+    }
+
+    /* beat flash overlay */
+    #beat-flash {
+      position: fixed; inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.08s ease-out;
+    }
+    #beat-flash.flash {
+      opacity: 1;
+      transition: none;
+    }
+
+    /* chart label */
+    #chart-label {
+      position: fixed;
+      bottom: 60px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      font-family: var(--sl-font-main);
+      font-size: 18px;
+      color: var(--sl-cyan);
+      letter-spacing: 4px;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+      text-shadow: 0 0 20px rgba(0,212,255,0.5);
+    }
+    #chart-label.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- Hidden elements required by audio modules -->
+  <div id="drop-zone" style="position:fixed;inset:0;z-index:98;pointer-events:none;"></div>
+  <input id="file-input" type="file" accept="audio/*" hidden>
+  <button id="btn-play" style="display:none" type="button">PLAY</button>
+  <button id="btn-restart" style="display:none" type="button">RESTART</button>
+  <button id="btn-mute" style="display:none" type="button">MUTE</button>
+  <input id="loop-toggle" type="checkbox" style="display:none">
+
+  <!-- Upload overlay -->
+  <div id="live-upload-overlay">
+    <div class="live-upload-card">
+      <h1>LIVE MODE</h1>
+      <p>DROP AN AUDIO FILE OR CLICK BELOW TO BEGIN</p>
+      <button id="live-choose-file" type="button">CHOOSE FILE</button>
+      <input id="live-file-input" type="file" accept="audio/*" hidden>
+    </div>
+  </div>
+
+  <!-- Progress overlay -->
+  <div id="live-progress-overlay" class="hidden">
+    <div class="live-progress-card">
+      <div class="label">ANALYZING SIGNAL</div>
+      <div class="live-progress-track">
+        <div id="live-progress-fill" class="live-progress-fill"></div>
+      </div>
+      <div id="live-progress-stage" class="live-progress-stage">Initializing...</div>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="live-hud">
+    <span class="hud-title">ASTROMECH LIVE</span>
+    <span id="hud-beat" class="hud-beat"></span>
+    <span id="hud-time" class="hud-time"></span>
+  </div>
+
+  <!-- Beat flash -->
+  <div id="beat-flash"></div>
+
+  <!-- Chart label -->
+  <div id="chart-label"></div>
+
+  <!-- Stage: all chart canvases stacked -->
+  <div id="live-stage">
+    <div class="live-layer" data-label="DECRYPTION RING" id="layer-ring">
+      <canvas id="ring-canvas" class="chart-canvas"></canvas>
+    </div>
+    <div class="live-layer" data-label="INSTANT SPECTRUM" id="layer-spectrum">
+      <canvas id="spectrum-canvas" class="chart-canvas"></canvas>
+    </div>
+    <div class="live-layer" data-label="SPECTROGRAM" id="layer-spectrogram">
+      <canvas id="spectrogram-canvas" class="chart-canvas"></canvas>
+    </div>
+    <div class="live-layer" data-label="BAND HEATMAP" id="layer-heatmap">
+      <canvas id="heatmap-canvas" class="chart-canvas"></canvas>
+    </div>
+    <div class="live-layer" data-label="STEREO PHASE SCOPE" id="layer-phase">
+      <canvas id="phase-scope-canvas" class="chart-canvas"></canvas>
+    </div>
+    <div class="live-layer" data-label="OSCILLOSCOPE" id="layer-oscilloscope">
+      <canvas id="oscilloscope-canvas" class="chart-canvas"></canvas>
+    </div>
+    <div class="live-layer" data-label="SIGNAL OVERVIEW" id="layer-overview">
+      <canvas id="overview-canvas" class="chart-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Bottom controls -->
+  <div id="live-controls">
+    <button id="live-play" type="button" disabled>PLAY</button>
+    <span id="live-time" class="live-time">0:00.0 / 0:00.0</span>
+    <button id="live-fullscreen" type="button">FULLSCREEN</button>
+    <button id="live-back" type="button">PANEL VIEW</button>
+  </div>
+
+  <script type="module" src="js/live-main.js"></script>
+</body>
+</html>
