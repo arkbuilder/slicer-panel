@@ -153,6 +153,159 @@
     .fx-pixel-enter { animation: pixel-in 0.75s cubic-bezier(.22,1,.36,1) forwards; }
     .fx-pixel-exit  { animation: pixel-out 0.5s ease-in forwards; }
 
+    /* ── Theater Curtains ──────────────────────────────────── */
+
+    #curtain-container {
+      position: fixed; inset: 0;
+      z-index: 90;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* Pelmet (valance across the top) */
+    .curtain-pelmet {
+      position: absolute;
+      top: 0; left: -4%; right: -4%;
+      height: 54px;
+      z-index: 4;
+      background:
+        repeating-linear-gradient(
+          180deg,
+          #4a0e0e 0px, #6b1a1a 6px,
+          #3c0808 12px, #5a1212 18px
+        );
+      border-bottom: 3px solid #d4a843;
+      box-shadow:
+        0 4px 24px rgba(0,0,0,0.8),
+        inset 0 -2px 6px rgba(0,0,0,0.5),
+        0 2px 8px rgba(212,168,67,0.15);
+      transform: translateY(-100%);
+      transition: transform 1.0s cubic-bezier(.4,0,.2,1);
+    }
+    .curtain-pelmet::after {
+      content: '';
+      position: absolute;
+      bottom: -18px; left: 0; right: 0;
+      height: 18px;
+      background:
+        repeating-conic-gradient(
+          #d4a843 0% 25%, transparent 0% 50%
+        ) 0 0 / 18px 18px;
+      mask: linear-gradient(to bottom, black 40%, transparent);
+      -webkit-mask: linear-gradient(to bottom, black 40%, transparent);
+      opacity: 0.7;
+    }
+
+    /* Curtain panels — left & right */
+    .curtain-panel {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 55%;
+      z-index: 3;
+      overflow: hidden;
+      transition: transform 2.0s cubic-bezier(.7, 0, .3, 1);
+    }
+    .curtain-left  { left: 0;  transform: translateX(0); }
+    .curtain-right { right: 0; transform: translateX(0); }
+
+    .curtain-fabric {
+      position: absolute;
+      inset: 0;
+      background:
+        /* Vertical fold shadows — creates gathered-fabric effect */
+        repeating-linear-gradient(
+          90deg,
+          rgba(0,0,0,0)    0px,
+          rgba(0,0,0,0.12) 18px,
+          rgba(80,15,15,0.08) 36px,
+          rgba(0,0,0,0.18) 52px,
+          rgba(0,0,0,0)    70px,
+          rgba(60,10,10,0.06) 88px,
+          rgba(0,0,0,0.14) 104px,
+          rgba(0,0,0,0)    120px
+        ),
+        /* Base velvet colour */
+        linear-gradient(
+          180deg,
+          #5a1010 0%,
+          #7a1818 15%,
+          #6b1414 40%,
+          #4a0c0c 70%,
+          #2e0606 100%
+        );
+      box-shadow:
+        inset 0 0 80px rgba(0,0,0,0.4),
+        inset 0 0 200px rgba(0,0,0,0.2);
+    }
+
+    /* Fringe trim on the inner edge */
+    .curtain-left .curtain-fringe {
+      position: absolute;
+      top: 0; right: -2px; bottom: 0;
+      width: 16px;
+      background:
+        repeating-linear-gradient(
+          180deg,
+          #d4a843 0px, #c69830 3px,
+          transparent 3px, transparent 8px
+        );
+      opacity: 0.6;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.5);
+    }
+    .curtain-right .curtain-fringe {
+      position: absolute;
+      top: 0; left: -2px; bottom: 0;
+      width: 16px;
+      background:
+        repeating-linear-gradient(
+          180deg,
+          #d4a843 0px, #c69830 3px,
+          transparent 3px, transparent 8px
+        );
+      opacity: 0.6;
+      box-shadow: -2px 0 12px rgba(0,0,0,0.5);
+    }
+
+    /* ── Curtain states ──────────────────────────────────── */
+
+    /* State: lowered — pelmet drops in, curtains close fully */
+    #curtain-container.lowered .curtain-pelmet {
+      transform: translateY(0);
+    }
+
+    /* State: open — curtains sweep apart */
+    #curtain-container.open .curtain-pelmet {
+      transform: translateY(0);
+    }
+    #curtain-container.open .curtain-left {
+      transform: translateX(-96%);
+      transition: transform 2.4s cubic-bezier(.4, 0, .15, 1);
+    }
+    #curtain-container.open .curtain-right {
+      transform: translateX(96%);
+      transition: transform 2.4s cubic-bezier(.4, 0, .15, 1);
+    }
+
+    /* State: gone — everything fully hidden after reveal completes */
+    #curtain-container.gone {
+      visibility: hidden;
+    }
+
+    /* Light spill effect when opening */
+    #curtain-container.open::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: radial-gradient(ellipse at 50% 60%, rgba(0,212,255,0.06) 0%, transparent 70%);
+      animation: stage-glow 2.4s ease-out forwards;
+    }
+    @keyframes stage-glow {
+      0%   { opacity: 0; }
+      30%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
     /* ── Upload overlay ─────────────────────────────────── */
     #live-upload-overlay {
       position: fixed; inset: 0;
@@ -345,6 +498,19 @@
   <button id="btn-restart" style="display:none" type="button">RESTART</button>
   <button id="btn-mute" style="display:none" type="button">MUTE</button>
   <input id="loop-toggle" type="checkbox" style="display:none">
+
+  <!-- Theater Curtains -->
+  <div id="curtain-container">
+    <div class="curtain-panel curtain-left">
+      <div class="curtain-fabric"></div>
+      <div class="curtain-fringe"></div>
+    </div>
+    <div class="curtain-panel curtain-right">
+      <div class="curtain-fabric"></div>
+      <div class="curtain-fringe"></div>
+    </div>
+    <div class="curtain-pelmet"></div>
+  </div>
 
   <!-- Upload overlay -->
   <div id="live-upload-overlay">

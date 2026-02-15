@@ -45,6 +45,7 @@ function boot() {
   const fullscreenBtn   = document.getElementById('live-fullscreen');
   const backBtn         = document.getElementById('live-back');
   const controlsBar     = document.getElementById('live-controls');
+  const curtainContainer = document.getElementById('curtain-container');
   const layers          = Array.from(document.querySelectorAll('.live-layer'));
 
   /* ── Canvas resize (fill viewport) ──────────────────────── */
@@ -120,12 +121,17 @@ function boot() {
 
   /* ── Overlay / progress wiring ──────────────────────────── */
 
-  // As soon as user picks a file, show progress (decode starts immediately)
+  // As soon as user picks a file, lower the curtains + show progress
   fileInput.addEventListener('change', () => {
     uploadOverlay.classList.add('hidden');
     progressOverlay.classList.remove('hidden');
     if (progressFill) progressFill.style.width = '0%';
     if (progressStage) progressStage.textContent = 'Decoding audio...';
+
+    // Lower the curtains (pelmet drops, panels close)
+    if (curtainContainer) {
+      curtainContainer.classList.add('lowered');
+    }
   });
 
   bus.on(BUS_EVENTS.PRECOMPUTE_PROGRESS, ({ percent, stage }) => {
@@ -136,15 +142,41 @@ function boot() {
   bus.on(BUS_EVENTS.DATA_READY, () => {
     progressOverlay.classList.add('hidden');
     playBtn.disabled = false;
-    hud.classList.add('visible');
-    controlsBar.classList.add('visible');
 
     // Build onset times for beat switching
     buildOnsetSchedule();
     resizeCanvases();
 
-    // Auto-play
-    setTimeout(() => { if (nativePlayBtn) nativePlayBtn.click(); }, 300);
+    // ── Curtain reveal sequence ──────────────────────────
+    // 1. Short pause (dramatic beat), then open curtains
+    // 2. Auto-play once curtains have swept apart
+    // 3. Mark curtains gone after animation completes
+    if (curtainContainer) {
+      setTimeout(() => {
+        curtainContainer.classList.add('open');
+
+        // Show HUD + controls once curtains start opening
+        setTimeout(() => {
+          hud.classList.add('visible');
+          controlsBar.classList.add('visible');
+        }, 600);
+
+        // Start playback after curtains are mostly open
+        setTimeout(() => {
+          if (nativePlayBtn) nativePlayBtn.click();
+        }, 1400);
+
+        // Remove curtain from rendering after animation fully done
+        setTimeout(() => {
+          curtainContainer.classList.add('gone');
+        }, 3000);
+      }, 500);
+    } else {
+      // Fallback if curtain element missing
+      hud.classList.add('visible');
+      controlsBar.classList.add('visible');
+      setTimeout(() => { if (nativePlayBtn) nativePlayBtn.click(); }, 300);
+    }
   });
 
   bus.on(BUS_EVENTS.PRECOMPUTE_ERROR, ({ message }) => {
