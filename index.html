@@ -56,6 +56,10 @@
         <div class="transport-controls">
           <button id="btn-restart" class="transport-btn" type="button" disabled>RESTART</button>
           <button id="btn-play" class="transport-btn transport-primary" type="button" disabled>PLAY</button>
+          <label class="loop-toggle" for="loop-toggle">
+            <input id="loop-toggle" type="checkbox">
+            <span>LOOP</span>
+          </label>
           <button id="btn-mute" class="transport-btn" type="button" disabled>MUTE</button>
         </div>
         <div class="time-display">
@@ -88,11 +92,16 @@
             <span class="panel-title">REROUTE POWER</span>
           </div>
           <div id="power-controls" class="power-controls"></div>
-          <div class="bookmark-block">
-            <div class="bookmark-title">BOOKMARKS</div>
-            <div id="bookmark-list" class="bookmark-list"></div>
-          </div>
         </section>
+
+        <section class="panel panel--eq">
+          <div class="panel-head">
+            <span class="panel-title">SIGNAL EQ</span>
+            <span class="panel-status eq-status">FLAT</span>
+          </div>
+          <div id="eq-controls" class="eq-controls"></div>
+        </section>
+
       </aside>
 
       <section class="right-column">
@@ -116,6 +125,24 @@
           </div>
           <canvas id="heatmap-canvas" class="chart-canvas"></canvas>
         </section>
+
+        <div class="club-viz-row">
+          <section class="panel panel--phase-scope">
+            <div class="panel-head">
+              <span class="panel-title">STEREO PHASE SCOPE</span>
+              <span id="phase-scope-status" class="panel-status">STANDBY</span>
+            </div>
+            <canvas id="phase-scope-canvas" class="chart-canvas chart-square"></canvas>
+          </section>
+
+          <section class="panel panel--oscilloscope">
+            <div class="panel-head">
+              <span class="panel-title">OSCILLOSCOPE</span>
+              <span id="oscilloscope-status" class="panel-status">STANDBY</span>
+            </div>
+            <canvas id="oscilloscope-canvas" class="chart-canvas"></canvas>
+          </section>
+        </div>
       </section>
     </main>
 

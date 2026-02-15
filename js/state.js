@@ -23,6 +23,7 @@ export const BUS_EVENTS = Object.freeze({
   TOOLTIP_HIDE: 'tooltip-hide',
   FILE_WARNING: 'file-warning',
   FLASH_MESSAGE: 'flash-message',
+  EQ_CHANGE: 'eq-change',
 });
 
 const DEFAULT_POWER_WEIGHTS = Object.freeze({
@@ -99,6 +100,13 @@ export function createState() {
   let muted = false;
   let bookmarks = [];
   let powerWeights = { ...DEFAULT_POWER_WEIGHTS };
+  let eqBands = [
+    { freq: 60,   gain: 0, Q: 1.0, type: 'lowshelf' },
+    { freq: 250,  gain: 0, Q: 1.0, type: 'peaking' },
+    { freq: 1000, gain: 0, Q: 1.0, type: 'peaking' },
+    { freq: 4000, gain: 0, Q: 1.0, type: 'peaking' },
+    { freq: 12000, gain: 0, Q: 1.0, type: 'highshelf' },
+  ];
 
   function getTimingReference() {
     if (precomputed?.hopSize && precomputed?.sampleRate) {
@@ -249,6 +257,15 @@ export function createState() {
     },
     setMuted(value) {
       muted = Boolean(value);
+    },
+
+    getEqBands() {
+      return eqBands.map((b) => ({ ...b }));
+    },
+    setEqBand(index, gain) {
+      if (index >= 0 && index < eqBands.length) {
+        eqBands[index] = { ...eqBands[index], gain: clamp(gain, -12, 12) };
+      }
     },
   };
 }

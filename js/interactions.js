@@ -197,7 +197,6 @@ function isTextEntryTarget(target) {
 export function initInteractions(bus, state) {
   const cleanupFns = [];
   const powerContainer = document.getElementById('power-controls');
-  const bookmarkList = document.getElementById('bookmark-list');
 
   cleanupFns.push(patchHoverDebounce(bus));
 
@@ -310,100 +309,13 @@ export function initInteractions(bus, state) {
   state.setPowerWeights(weights);
   bus.emit(BUS_EVENTS.POWER_CHANGE, { weights: { ...weights } });
 
-  const renderBookmarks = () => {
-    if (!(bookmarkList instanceof HTMLElement)) {
-      return;
-    }
-
-    const bookmarks = state.getBookmarks();
-    bookmarkList.innerHTML = '';
-
-    if (!bookmarks.length) {
-      const empty = document.createElement('div');
-      empty.className = 'bookmark-empty';
-      empty.textContent = 'NO BOOKMARKS';
-      bookmarkList.appendChild(empty);
-      return;
-    }
-
-    for (let i = 0; i < bookmarks.length; i += 1) {
-      const bookmark = bookmarks[i];
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'bookmark-row';
-      row.dataset.index = String(i);
-      row.textContent = `${i + 1}. ${bookmark.label || `BK-${i + 1}`} @ ${formatTime(bookmark.time)}`;
-      bookmarkList.appendChild(row);
-    }
-  };
-
-  const onBookmarkClick = (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) {
-      return;
-    }
-
-    const row = target.closest('.bookmark-row');
-    if (!(row instanceof HTMLElement)) {
-      return;
-    }
-
-    const index = Number(row.dataset.index);
-    const bookmark = state.getBookmarks()[index];
-    if (!bookmark) {
-      return;
-    }
-
-    bus.emit(BUS_EVENTS.BOOKMARK_JUMP, { time: bookmark.time });
-    bus.emit(BUS_EVENTS.PLAYHEAD_SEEK, { time: bookmark.time });
-  };
-
-  bookmarkList?.addEventListener('click', onBookmarkClick);
-
   const onKeyDown = (event) => {
     if (isTextEntryTarget(event.target)) {
       return;
     }
-
-    if (event.code === 'KeyB') {
-      event.preventDefault();
-      const time = state.frameToTime(state.getCurrentFrame());
-      const nextIndex = state.getBookmarks().length + 1;
-      const bookmark = state.addBookmark({
-        time,
-        label: `BK-${nextIndex}`,
-      });
-
-      if (bookmark) {
-        bus.emit(BUS_EVENTS.BOOKMARK_ADD, { ...bookmark });
-      }
-      return;
-    }
-
-    if (/^Digit[1-9]$/.test(event.code)) {
-      event.preventDefault();
-      const index = Number(event.code.slice(-1)) - 1;
-      const bookmark = state.getBookmarks()[index];
-      if (!bookmark) {
-        return;
-      }
-
-      bus.emit(BUS_EVENTS.BOOKMARK_JUMP, { time: bookmark.time });
-      bus.emit(BUS_EVENTS.PLAYHEAD_SEEK, { time: bookmark.time });
-    }
   };
 
   document.addEventListener('keydown', onKeyDown);
-
-  cleanupFns.push(bus.on(BUS_EVENTS.BOOKMARK_ADD, () => {
-    renderBookmarks();
-  }));
-
-  cleanupFns.push(bus.on(BUS_EVENTS.FILE_LOADED, () => {
-    renderBookmarks();
-  }));
-
-  renderBookmarks();
 
   return () => {
     for (const key of POWER_KEYS) {
@@ -413,7 +325,6 @@ export function initInteractions(bus, state) {
       }
     }
 
-    bookmarkList?.removeEventListener('click', onBookmarkClick);
     document.removeEventListener('keydown', onKeyDown);
 
     if (hideTooltipTimer) {

@@ -9,8 +9,11 @@ import { initBandHeatmap } from './charts/band-heatmap.js';
 import { initDecryptionRing } from './charts/decryption-ring.js';
 import { initInstantSpectrum } from './charts/instant-spectrum.js';
 import { initFaultLog } from './charts/fault-log.js';
+import { initPhaseScope } from './charts/phase-scope.js';
+import { initOscilloscope } from './charts/oscilloscope.js';
 import { initInteractions } from './interactions.js';
 import { initTheme } from './theme.js';
+import { initEqDials } from './eq-dials.js';
 
 function getCappedDpr() {
   const dpr = window.devicePixelRatio || 1;
@@ -217,7 +220,10 @@ function boot() {
     initDecryptionRing('ring-canvas', bus, state),
     initInstantSpectrum('spectrum-canvas', bus, state),
     initFaultLog('fault-list', bus, state),
+    initPhaseScope('phase-scope-canvas', bus, state),
+    initOscilloscope('oscilloscope-canvas', bus, state),
     initInteractions(bus, state),
+    initEqDials(bus, state),
   ];
 
   window.addEventListener('beforeunload', () => {

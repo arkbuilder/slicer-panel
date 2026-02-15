@@ -10,6 +10,9 @@ let startTime = 0;
 let wallClockStartMs = 0;
 let rafId = null;
 let loopRegion = null;
+let eqFilters = []; // BiquadFilterNode chain for 5-band EQ
+let loopEnabled = false;
+let loopRestartPending = false;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -36,11 +39,42 @@ function ensureGainNode(state) {
 
   if (!gainNode) {
     gainNode = audioCtx.createGain();
+  }
+
+  // Build EQ chain: source → [eq0 → eq1 → eq2 → eq3 → eq4] → gain → destination
+  if (eqFilters.length === 0) {
+    const bands = state.getEqBands();
+    for (let i = 0; i < bands.length; i++) {
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = bands[i].type;
+      filter.frequency.value = bands[i].freq;
+      filter.gain.value = bands[i].gain;
+      if (bands[i].type === 'peaking') {
+        filter.Q.value = bands[i].Q;
+      }
+      eqFilters.push(filter);
+    }
+    // Chain: eq0 → eq1 → ... → eqN → gainNode → destination
+    for (let i = 0; i < eqFilters.length - 1; i++) {
+      eqFilters[i].connect(eqFilters[i + 1]);
+    }
+    eqFilters[eqFilters.length - 1].connect(gainNode);
     gainNode.connect(audioCtx.destination);
   }
 
   gainNode.gain.value = state.isMuted() ? 0 : 1;
   return gainNode;
+}
+
+function getEqInputNode() {
+  // The first node in the EQ chain that sourceNode should connect to
+  return eqFilters.length > 0 ? eqFilters[0] : gainNode;
+}
+
+function updateEqBand(index, gain) {
+  if (index >= 0 && index < eqFilters.length) {
+    eqFilters[index].gain.value = gain;
+  }
 }
 
 function stopSourceNode() {
@@ -111,7 +145,7 @@ function updateMuteButton(muted) {
 }
 
 function setTransportEnabled(enabled) {
-  for (const id of ['btn-play', 'btn-restart', 'btn-mute']) {
+  for (const id of ['btn-play', 'btn-restart', 'btn-mute', 'loop-toggle']) {
     const node = document.getElementById(id);
     if (node) {
       node.disabled = !enabled;
@@ -228,6 +262,17 @@ export function initPlayback(bus, state) {
       }
 
       if (time >= duration) {
+        if (loopEnabled && !loopRegion && !loopRestartPending) {
+          loopRestartPending = true;
+          stopSourceNode();
+          startOffset = 0;
+          emitPlayhead(0);
+          void startSourceAt(0).finally(() => {
+            loopRestartPending = false;
+          });
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
         stopPlaybackState(false);
         startOffset = duration;
         emitPlayhead(duration);
@@ -271,7 +316,7 @@ export function initPlayback(bus, state) {
 
     const node = context.createBufferSource();
     node.buffer = audioBuffer;
-    node.connect(gain);
+    node.connect(getEqInputNode());
 
     node.onended = () => {
       if (sourceNode !== node) {
@@ -286,6 +331,12 @@ export function initPlayback(bus, state) {
       if (loopRegion) {
         startOffset = loopRegion.startTime;
         void startSourceAt(startOffset);
+        return;
+      }
+
+      if (loopEnabled) {
+        startOffset = 0;
+        void startSourceAt(0);
         return;
       }
 
@@ -316,6 +367,7 @@ export function initPlayback(bus, state) {
     }
 
     stopSourceNode();
+    loopRestartPending = false;
 
     if (startOffset >= getDuration()) {
       startOffset = loopRegion ? loopRegion.startTime : 0;
@@ -422,13 +474,26 @@ export function initPlayback(bus, state) {
     toggleMute();
   };
 
+  const onLoopToggleChange = () => {
+    if (!(loopToggleInput instanceof HTMLInputElement)) {
+      return;
+    }
+    loopEnabled = loopToggleInput.checked;
+  };
+
   const playButton = document.getElementById('btn-play');
   const restartButton = document.getElementById('btn-restart');
+  const loopToggleInput = document.getElementById('loop-toggle');
   const muteButton = document.getElementById('btn-mute');
 
   playButton?.addEventListener('click', onPlayClick);
   restartButton?.addEventListener('click', onRestartClick);
+  loopToggleInput?.addEventListener('change', onLoopToggleChange);
   muteButton?.addEventListener('click', onMuteClick);
+
+  if (loopToggleInput instanceof HTMLInputElement) {
+    loopEnabled = loopToggleInput.checked;
+  }
 
   keyHandler = (event) => {
     if (!shouldHandleKey(event)) {
@@ -503,6 +568,15 @@ export function initPlayback(bus, state) {
     setMuted(payload.muted);
   }));
 
+  offHandlers.push(bus.on(BUS_EVENTS.EQ_CHANGE, (payload) => {
+    if (!payload) return;
+    const { index, gain: g } = payload;
+    if (typeof index === 'number' && typeof g === 'number') {
+      state.setEqBand(index, g);
+      updateEqBand(index, g);
+    }
+  }));
+
   offHandlers.push(bus.on(BUS_EVENTS.FILE_LOADED, () => {
     setTransportEnabled(false);
   }));
@@ -518,6 +592,7 @@ export function initPlayback(bus, state) {
 
     playButton?.removeEventListener('click', onPlayClick);
     restartButton?.removeEventListener('click', onRestartClick);
+    loopToggleInput?.removeEventListener('change', onLoopToggleChange);
     muteButton?.removeEventListener('click', onMuteClick);
 
     if (keyHandler) {
