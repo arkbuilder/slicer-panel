@@ -1,162 +1,212 @@
-# RSX-2 Reference Spectrum Analyzer
+# Astromech Slicer Panel
 
-<img src="og2.png" >
-My second week 1 submission for Data Visualizations and Interaction is
+A sci-fi audio data visualization web app that analyzes uploaded audio files and presents coordinated charts styled like a Star Wars astromech hacking console. Built with **vanilla HTML, CSS, and JavaScript** — no frameworks, no build step, no dependencies.
 
-[A professional-grade audio FFT visualizer designed to look and feel like high-end studio hardware. The RSX-2 features a brushed aluminum faceplate, precision rotary controls, and real-time stereo spectrum analysis with LED-style display bars.](https://kylephoto.blob.core.windows.net/spring-into-ai/fft/index.html)
+![Astromech Slicer Panel](screenshot_slicer_panel.png)
+
+> **[Live Demo](https://kylephoto.blob.core.windows.net/spring-into-ai/fft/index.html)** · **[Deep Wiki Documentation](https://deepwiki.com/arkbuilder/slicer-panel)** · **[Blog Post](https://ericrhea.com/spring-into-ai/week-1-astromech-splicer-panel.html)**
+
+---
+
+## Application Modes
+
+The repository contains three distinct applications:
+
+| Mode | Entry Point | Description |
+|------|-------------|-------------|
+| **Panel View** | `index.html` | Comprehensive analysis dashboard with 8+ simultaneous visualizations, power controls, and 5-band EQ |
+| **Live Mode** | `Live.html` | Full-screen beat-synchronized visualization with theatrical transitions and auto-switching charts |
+| **RSX-2 Analyzer** | `index_v1.html` | Self-contained hardware-inspired spectrum analyzer (the original upstream project) |
+
+---
 
 ## Features
 
-### Visual Design
-- **Hardware-inspired aesthetics** - Brushed metal texture, corner fasteners, and recessed glass display
-- **Dual-channel visualization** - Independent left and right channel spectrum analyzers
-- **40-band logarithmic FFT** - Frequency range from 20Hz to 20kHz
-- **LED-style bars** - White gradient bars with amber peak indicators
-- **Dual display modes** - Switch between Spectrum (frequency) and Scope (waveform) views
-- **Dual layout modes** - Choose between Linear bars and Radial circular visualization
-- **Subtle grid overlay** - Professional measurement reference lines
+### Visualizations
+- **Decryption Ring** — Radial 40-arc frequency band view with sci-fi animation
+- **Instant Spectrum** — Real-time 40-bar vertical spectrum display
+- **Band Heatmap** — Time × frequency energy heatmap across 40 logarithmic bands
+- **Spectrogram** — Scrolling frequency × time waterfall display
+- **Overview Waveform** — Full-track waveform with brush-to-zoom selection
+- **Oscilloscope** — Real-time time-domain waveform display
+- **Stereo Phase Scope** — Lissajous stereo field visualization
+- **Signal Sync (Beat Tap)** — Rhythm game layer synced to detected onsets
 
 ### Interactive Controls
+- **Reroute Power** — Visual re-weighting sliders that redistribute energy across frequency bands
+- **5-Band Signal EQ** — Orbital-drag dial controls for real-time equalization
+- **Transport** — Play/Pause, Restart, Loop toggle, Mute, and time display
+- **Brush Selection** — Click-drag on the overview waveform to zoom into a time region
+- **Cross-Chart Linking** — Playhead, hover, and selection sync across all charts
 
-#### Decay Knob
-- Controls the fall rate of spectrum bars (1-20)
-- Orbital drag interaction - move mouse in circular motion around knob
-- Adjusts visual persistence of frequency data
+### Fault Log
+Automated fault detection triggered by real signal properties:
+- Clipping / peak overloads
+- Silence gaps
+- Sudden spectrum changes
+- Phase anomalies
 
-#### Monitor Knob
-- Master volume control (-30dB to +10dB)
-- Affects both left and right channels
-- **Double-click to reset to 0dB** (unity gain)
-- Orbital drag interaction
+### Live Mode
+- Eight transition effects: glitch, zoom-rotate, slide, iris, scan, blur-flash, diamond, pixel
+- Automatic chart switching on detected beat onsets
+- Theatrical curtain animations
 
-#### Display Mode Toggle
-- Switch between **Spectrum** (frequency analysis) and **Scope** (waveform/oscilloscope)
-- Spectrum mode shows frequency content with 40 logarithmic bands
-- Scope mode displays time-domain waveform with phosphor-style persistence effect
-- Decay control affects persistence in both modes
+---
 
-#### Layout Mode Toggle
-- Switch between **Linear** (traditional bar graph) and **Radial** (circular) layouts
-- Linear mode: Classic horizontal spectrum bars
-- Radial mode: Circular visualization with rotating animation
-- Both modes support Spectrum and Scope displays
+## Getting Started
 
-#### Transport Controls
-- **Play/Pause** - Start/stop audio playback
-- **Restart** - Jump back to beginning
-- **Progress bar** - Seek to any position in the track
-- **Time display** - Current time and total duration
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/arkbuilder/slicer-panel.git
+   cd slicer-panel
+   ```
 
-#### Test Mode (Developer Feature)
-- Optional button in top-right corner (controlled by `ENABLE_TEST_MODE` constant)
-- Generates and freezes realistic random audio data for testing
-- Useful for development and demonstration without audio files
-- Works across all display and layout modes
+2. **Serve locally** (any static server works)
+   ```bash
+   npx serve .
+   # or: python -m http.server 8000
+   ```
 
-### Hover Tooltips
-Hover over any frequency bar to see:
-- **Frequency range** (e.g., "120-250 Hz" or "5.0-10.5 kHz")
-- **Current amplitude** (0-255 scale)
-- **Energy percentage** - Relative energy contribution to total spectrum
+3. **Open in browser**
+   - Panel View: `http://localhost:3000/index.html`
+   - Live Mode: `http://localhost:3000/Live.html`
 
-## Usage
+4. **Upload an audio file** — drag & drop or click the file picker. Supported formats: WAV, MP3, FLAC, OGG, and other browser-compatible audio.
 
-1. **Load Audio File**
-   - Click "Select File" or drag & drop an MP3/audio file onto the drop zone
-   - Supported formats: MP3, WAV, and other browser-compatible audio formats
+---
 
-2. **Control Playback**
-   - Click the play button to start
-   - Adjust the Monitor knob to control volume
-   - Use the progress bar to seek through the track
+## Architecture
 
-3. **Switch Display Modes**
-   - Toggle between Spectrum and Scope modes
-   - Spectrum: See frequency content across 40 bands
-   - Scope: View waveform shape in real-time
-
-4. **Switch Layout Modes**
-   - Toggle between Linear and Radial visualizations
-   - Linear: Traditional horizontal bar layout
-   - Radial: Circular spinning visualization
-
-5. **Adjust Visualization**
-   - Turn the Decay knob to control how quickly bars fall (Spectrum) or waveform fades (Scope)
-   - Higher values = slower decay/more persistence
-   - Lower values = faster decay/more responsive
-
-6. **Analyze Frequencies**
-   - Hover over bars (in Spectrum mode) to see detailed frequency information
-   - Left and right channels are analyzed independently
-   - Watch for amplitude differences between channels
-
-## Technical Details
-
-- **FFT Size**: 2048 samples
-- **Frequency Bands**: 40 logarithmic bands (Spectrum mode)
-- **Frequency Range**: 20Hz - 20kHz
-- **Sample Rate**: Derived from audio source
-- **Smoothing**: 0.8 time constant on frequency analysis
-- **Stereo Processing**: Independent left/right channel analysis via Web Audio API
-- **Display Modes**:
-  - Spectrum: Frequency domain analysis (FFT)
-  - Scope: Time domain waveform display
-- **Layout Modes**:
-  - Linear: Traditional bar visualization
-  - Radial: Circular visualization with continuous rotation
-- **Radial Animation**: 0.002 radians/frame rotation speed
-
-## Audio Graph
+### Data Flow
 
 ```
-Audio Element
-    ↓
-Media Element Source
-    ↓
-Gain Node (Monitor control)
-    ↓
-Channel Splitter
-    ├─→ Analyzer (Left) → Visualizer
-    └─→ Analyzer (Right) → Visualizer
+AUDIO FILE (drag-drop / file picker)
+    │
+    ▼
+┌──────────────────────────┐
+│  audio-decode.js         │  decodeAudioData() → AudioBuffer
+│  (main thread)           │  → Float32Array per channel
+└──────────┬───────────────┘
+           │ postMessage(samples)
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│  precompute-worker.js  (Web Worker)                          │
+│                                                              │
+│  1. Downsample → LOD waveforms                               │
+│  2. RMS envelope                                             │
+│  3. STFT (Hann 2048, hop 512) → magnitudes per frame         │
+│  4. 40 log bands per frame                                   │
+│  5. Spectral flux + onset detection                          │
+│  6. Phase correlation                                        │
+│  7. Fault detection                                          │
+└──────────┬───────────────────────────────────────────────────┘
+           │ onmessage (results)
+           ▼
+┌──────────────────────────┐
+│  state.js                │  Stores all precomputed arrays
+│  (main thread)           │  Emits 'data-ready' via bus
+└──────────┬───────────────┘
+           │ bus events
+           ▼
+┌──────────────────────────────────────────────────────────────┐
+│  CHART MODULES (each subscribes to bus)                      │
+│                                                              │
+│  overview-waveform · spectrogram · band-heatmap              │
+│  decryption-ring · instant-spectrum · fault-log              │
+│  oscilloscope · phase-scope · beat-tap                       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Requirements
+### Event-Driven Communication
 
-- Modern web browser with Web Audio API support (Chrome, Firefox, Safari, Edge)
-- Local audio files (MP3, WAV, etc.)
-- `brushed-metal-texture.jpg` for hardware aesthetic
+All modules communicate through a lightweight pub/sub event bus. Visualization modules subscribe to events and read state via getters — no module directly calls methods on another module.
+
+| Event | Description |
+|-------|-------------|
+| `FILE_LOADED` | Audio file decoded and ready |
+| `DATA_READY` | Precomputation complete |
+| `PLAYHEAD_UPDATE` | Current playback position changed |
+| `EQ_CHANGE` | EQ dial values adjusted |
+| `POWER_CHANGE` | Power reroute weights changed |
+| `RESIZE` | Window resized |
+
+### Technical Specs
+
+- **FFT Size:** 2048 samples, hop 512, Hann window
+- **Frequency Bands:** 40 logarithmic bands (20 Hz – 20 kHz)
+- **Rendering:** Canvas 2D for all charts; DOM for fault log
+- **Audio:** Web Audio API (`AudioBufferSourceNode` + `AnalyserNode` + `BiquadFilterNode`)
+- **Stereo:** Independent left/right channel analysis via `ChannelSplitter`
+- **Workers:** Heavy FFT/analysis offloaded to Web Worker with Transferable arrays
+
+---
 
 ## File Structure
 
 ```
-fft/
-├── index.html                 # Complete single-file application
-├── brushed-metal-texture.jpg  # Brushed metal background texture
-└── README.md                  # This file
+slicer-panel/
+├── index.html                      # Panel View entry point
+├── Live.html                       # Live Mode entry point
+├── index_v1.html                   # Original RSX-2 analyzer (reference)
+├── css/
+│   └── slicer.css                  # Styles, sci-fi theme (CSS custom properties)
+├── js/
+│   ├── main.js                     # Panel View bootstrap
+│   ├── live-main.js                # Live Mode bootstrap
+│   ├── bus.js                      # Event bus (pub/sub)
+│   ├── state.js                    # State store + BUS_EVENTS enum
+│   ├── audio-decode.js             # File upload + decodeAudioData
+│   ├── audio-playback.js           # Playback engine
+│   ├── precompute.js               # Web Worker orchestrator
+│   ├── interactions.js             # Power controls, cross-chart linking
+│   ├── eq-dials.js                 # 5-band EQ orbital dial controls
+│   ├── theme.js                    # Decryption animation, scanline FX
+│   ├── touch-utils.js              # Unified pointer/touch event helpers
+│   └── charts/
+│       ├── overview-waveform.js    # Full-track waveform with brush-to-zoom
+│       ├── spectrogram.js          # Frequency × time heatmap
+│       ├── band-heatmap.js         # 40-band energy heatmap
+│       ├── decryption-ring.js      # Radial 40-arc band view
+│       ├── instant-spectrum.js     # 40-bar vertical spectrum
+│       ├── oscilloscope.js         # Time-domain waveform
+│       ├── phase-scope.js          # Stereo Lissajous display
+│       ├── beat-tap.js             # Rhythm game / signal sync
+│       └── fault-log.js            # Fault event list (DOM-based)
+├── workers/
+│   └── precompute-worker.js        # Web Worker: FFT, bands, RMS, faults
+├── lib/
+│   └── fft.js                      # Radix-2 FFT implementation
+├── assets/                         # Favicon, textures
+├── Plans/                          # Detailed architecture & design docs (14 plans)
+└── Prompts/                        # Original planning & implementation prompts
 ```
-
-## Controls Summary
-
-| Control | Action | Function |
-|---------|--------|----------|
-| **Decay Knob** | Orbital drag | Adjust bar fall rate / waveform persistence (1-20) |
-| **Decay Knob** | Double-click | Reset to default (10) |
-| **Display Mode Toggle** | Click | Switch between Spectrum and Scope |
-| **Layout Mode Toggle** | Click | Switch between Linear and Radial |
-| **Monitor Knob** | Orbital drag | Adjust volume (-30dB to +10dB) |
-| **Monitor Knob** | Double-click | Reset to 0dB |
-| **Play/Pause** | Click | Toggle playback |
-| **Restart** | Click | Return to start |
-| **Progress Bar** | Click/drag | Seek to position |
-| **Spectrum Bars** | Hover | Show frequency details (Linear Spectrum mode) |
-| **Test Mode** | Click | Toggle random test data (if enabled) |
-
-## Design Philosophy
-
-The RSX-2 is designed to feel less like a software widget and more like a precision instrument built for a mastering room. The brushed aluminum faceplate, exposed black fasteners, and machined control knobs communicate weight and permanence, while the recessed glass display window gives the LED spectrum bars a sense of depth and focus. Each channel is presented symmetrically for critical stereo evaluation, with restrained white LED ladders and subtle amber peak indicators emphasizing accuracy over flash. The rotary gain and decay controls evoke analog signal flow, reinforcing the idea that this is not just a visualizer, but a monitoring tool intended for deliberate listening.
-
-The addition of multiple display modes (Spectrum/Scope) and layout modes (Linear/Radial) expands the RSX-2 from a single-purpose analyzer into a versatile monitoring station. The oscilloscope mode provides the traditional time-domain view essential for phase analysis and transient inspection, while the radial mode offers a modern circular visualization that maintains the hardware aesthetic while exploring new spatial arrangements of the frequency data.
 
 ---
 
-Built with vanilla JavaScript and the Web Audio API. No frameworks, no dependencies.
+## Adding a New Visualization
+
+1. Create `js/charts/my-chart.js` exporting `initMyChart(canvasId, bus, state)`
+2. Subscribe to events: `bus.on(BUS_EVENTS.DATA_READY, callback)`
+3. Read state: `state.getPrecomputed()`, `state.getAnalysers()`, or `state.getDecoded()`
+4. Add `<canvas id="my-canvas" class="chart-canvas">` to `index.html`
+5. Register in `js/main.js` boot sequence and push the cleanup function
+
+---
+
+## Requirements
+
+- Modern browser with Web Audio API support (Chrome, Firefox, Safari, Edge)
+- Local audio files (WAV, MP3, FLAC, OGG)
+- No server-side processing required — everything runs client-side
+
+---
+
+## Design Philosophy
+
+The Astromech Slicer Panel is designed to feel like a Star Wars astromech droid hacking into an encrypted signal. Every chart is a real, legible, informative data visualization — not a fake animation. The sci-fi aesthetic (amber glows, cyan accents, scan lines, fault alerts) is layered on top of genuine spectral analysis, making the tool both visually striking and analytically useful.
+
+The coordinated multi-chart approach lets you see the same audio data across different dimensions simultaneously: full-track overview, frequency × time, instantaneous spectrum, stereo phase, and rhythmic structure — all linked through a shared playhead and event bus.
+
+---
+
+Built with vanilla JavaScript and the Web Audio API. No frameworks, no dependencies. Zero build step — open `index.html` and it works.
